@@ -4,8 +4,8 @@
 продолжает отсюда, прочитав также `AGENTS.md` и `ARCHITECTURE_BASELINE.md`.
 
 - Обновлено: 2026-09-22
-- Текущий milestone: **M1 — Walking skeleton** (начат)
-- Предыдущий: **M0 — Фундамент** (завершён)
+- Текущий milestone: **M1 — Walking skeleton** (завершён)
+- Следующий: **M2 — Домен и lifecycle**
 - Remote: https://github.com/yunecque/ai_dev_project (main, protected)
 
 ---
@@ -15,7 +15,7 @@
 | Milestone | Статус | Примечание |
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
-| M1 Walking skeleton | ~99% | TASK-0001…0011 done; остался TASK-0012 (authz/negative/e2e) |
+| M1 Walking skeleton | 100% | TASK-0001…0012 done; walking skeleton собран |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
@@ -87,14 +87,26 @@ semgrep=1.177.0  uv=0.12.17
 ## 3. Проверки (зелёные)
 
 ```bash
+# control-plane (Python)
 cd control-plane
 python -m ruff check src tests      # All checks passed
-python -m mypy                      # Success: no issues found (5 files, strict)
-python -m pytest -q                 # 21 passed
+python -m mypy                      # Success: no issues found (17 files, strict)
+python -m pytest -q                 # 70 passed
 sdlc validate ../specs/examples/*.json   # все OK
 sdlc validate ../baseline.json           # OK
+
+# apps (Go)
+cd apps
+gofmt -l . && go vet ./...          # clean
+go test ./...                       # unit
+go test -tags=integration ./...     # integration (Postgres gated by TEST_DATABASE_URL)
+
+# policy (Rego)
+opa fmt --fail policies/ && opa test policies/   # 7/7
 ```
 
+CI: 15 required checks; `build-image` собирает 4 образа, `dependency-scan` (Trivy),
+`sast` (Semgrep), `security-tests` (tests + Trivy secrets), `integration-tests` (Postgres service).
 Все JSON и YAML в репозитории парсятся; compose config валиден.
 
 ---
@@ -204,7 +216,13 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
     `CGO_ENABLED=0`, distroless `static-debian12:nonroot`), `apps/.dockerignore`.
   - CI `build-image`: сборка всех 4 образов (context `apps/`) на PR и push.
   - CI `dependency-scan`: Trivy vuln по `apps/go.mod` (`--severity HIGH,CRITICAL --ignore-unfixed`).
-- [ ] **TASK-0012** — тесты authorization/negative_pipeline/e2e_smoke.
+- [x] **TASK-0012** — тесты authorization / negative_pipeline / e2e_smoke.
+  - gateway `authorization_test.go`: только Bearer, пустой токен → 401, тело не может
+    переопределить subject, разные токены → разные subject.
+  - control-plane `test_negative_pipeline.py`: композиция policy+capability, fail-closed,
+    sensitive не попадает в контекст, untrusted/sensitive не инструкции.
+  - worker `e2e_smoke_integration_test.go`: golden event из контракта через embedded JetStream
+    обрабатывается ровно один раз (смыкает async golden path с domain payload-тестом).
 
 ## 7. Полезные команды
 
