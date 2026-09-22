@@ -15,7 +15,7 @@
 | Milestone | Статус | Примечание |
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
-| M1 Walking skeleton | ~70% | TASK-0001…0006 done (Go gateway + domain) |
+| M1 Walking skeleton | ~85% | TASK-0001…0007 done (gateway/domain/publisher/worker) |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
@@ -102,8 +102,10 @@ sdlc validate ../baseline.json           # OK
 ## 4. Что уже в репозитории
 
 ```
-apps/{gateway,domain,worker}/     # gateway: REST+OIDC+gRPC; domain: gRPC+outbox (Go)
-apps/domain/migrations/0001_init.sql  # requests + outbox (pending publisher)
+apps/{gateway,domain,worker}/     # gateway REST+OIDC+gRPC; domain gRPC+outbox; worker consumer
+apps/publisher/                   # outbox poller -> NATS JetStream (Go)
+apps/domain/migrations/0001_init.sql  # requests + outbox
+apps/worker/migrations/0002_processed_events.sql  # идемпотентность consumer'а
 apps/go.mod                       # единый Go-модуль github.com/yunecque/ai_dev_project/apps
 apps/gen/domain/v1/               # сгенерированный из proto код (buf, local plugins)
 control-plane/                    # Python 3.12: src/sdlc (artifacts, policy, runner, evidence), tests
@@ -173,7 +175,12 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
     `MemoryStore` (tests/dev), `PostgresStore` (pgx, atomic insert request+outbox),
     `migrations/0001_init.sql`. Тесты: request+event в одной транзакции, валидация,
     сверка outbox payload с контрактом события (9). Go: gofmt/vet/test зелёные.
-- [ ] **TASK-0007** — outbox publisher → NATS; `apps/worker` идемпотентный consumer.
+- [x] **TASK-0007** — outbox publisher → NATS; `apps/worker` идемпотентный consumer.
+  - `apps/publisher`: `outbox.Poller` (Fetch→Publish→Mark, стоп на первой ошибке),
+    `PostgresStore`, `NATSPublisher` (JetStream), main с bootstrap stream `REQUESTS`.
+  - `apps/worker`: `consumer.Handler` (validate→dedupe→apply ровно один раз),
+    `MemoryDedupe`/`PostgresDedupe` (`ON CONFLICT DO NOTHING`), JetStream durable `worker`.
+  - Тесты на фейках: poller (5) + handler (6). Реальный NATS/Postgres — в TASK-0008.
 - [ ] **TASK-0008** — тесты: unit, api_acceptance, authorization, grpc_contract, event_contract,
   integration, security, negative_pipeline, e2e_smoke.
 - [ ] **TASK-0009** — реализовать заглушки стадий CI (`contract-tests`, `sast`, `integration-tests`,
