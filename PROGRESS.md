@@ -15,7 +15,7 @@
 | Milestone | Статус | Примечание |
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
-| M1 Walking skeleton | ~98% | TASK-0001…0010 done; остались build-image, e2e |
+| M1 Walking skeleton | ~99% | TASK-0001…0011 done; остался TASK-0012 (authz/negative/e2e) |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
@@ -199,7 +199,11 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
     requests verify=False); CI `sast` = `semgrep scan --config ... --error`.
   - CI `security-tests` = control-plane security-тесты (policy/runner/evidence/trust) +
     `trivy fs --scanners secret --exit-code 1`.
-- [ ] **TASK-0011** — CI-стадия `build-image` + Dockerfile'ы сервисов (+ `dependency-scan` Trivy).
+- [x] **TASK-0011** — CI-стадии `build-image` и `dependency-scan`.
+  - Dockerfile'ы `apps/{gateway,domain,publisher,worker}/Dockerfile` (multi-stage,
+    `CGO_ENABLED=0`, distroless `static-debian12:nonroot`), `apps/.dockerignore`.
+  - CI `build-image`: сборка всех 4 образов (context `apps/`) на PR и push.
+  - CI `dependency-scan`: Trivy vuln по `apps/go.mod` (`--severity HIGH,CRITICAL --ignore-unfixed`).
 - [ ] **TASK-0012** — тесты authorization/negative_pipeline/e2e_smoke.
 
 ## 7. Полезные команды
