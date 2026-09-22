@@ -15,7 +15,7 @@
 | Milestone | Статус | Примечание |
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
-| M1 Walking skeleton | ~85% | TASK-0001…0007 done (gateway/domain/publisher/worker) |
+| M1 Walking skeleton | ~90% | TASK-0001…0008 done; остался CI-стадии (TASK-0009) |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
@@ -181,10 +181,14 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
   - `apps/worker`: `consumer.Handler` (validate→dedupe→apply ровно один раз),
     `MemoryDedupe`/`PostgresDedupe` (`ON CONFLICT DO NOTHING`), JetStream durable `worker`.
   - Тесты на фейках: poller (5) + handler (6). Реальный NATS/Postgres — в TASK-0008.
-- [ ] **TASK-0008** — тесты: unit, api_acceptance, authorization, grpc_contract, event_contract,
-  integration, security, negative_pipeline, e2e_smoke.
-- [ ] **TASK-0009** — реализовать заглушки стадий CI (`contract-tests`, `sast`, `integration-tests`,
-  `security-tests`, `policy-check`, `build-image`).
+- [x] **TASK-0008** — интеграционные тесты (build-tag `integration`).
+  - `domain` Postgres: атомарная запись request+outbox и rollback при конфликте (gated по
+    `TEST_DATABASE_URL`).
+  - `publisher`↔NATS и `worker`↔NATS: встроенный JetStream, идемпотентность дубликата.
+  - CI: джоба `integration-tests` с сервисом Postgres + `go test -tags=integration ./...`.
+  - Осталось (перенесено): authorization/security/negative_pipeline/e2e_smoke — в TASK-0009.
+- [ ] **TASK-0009** — реализовать оставшиеся заглушки CI (`contract-tests`, `sast`,
+  `security-tests`, `policy-check`, `build-image`) и тесты authorization/security/negative/e2e.
 
 ## 7. Полезные команды
 
