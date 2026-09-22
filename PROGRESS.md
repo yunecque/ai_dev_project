@@ -126,18 +126,17 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
 - Граница = capability removal + mediation (MCP + OPA pre-tool-call) + tamper-proofing.
 - Размещение агента: M1 — host; цель — контейнер; sandbox всегда эфемерный.
 - Ограничение opencode через `.opencode/` (MCP + `permission` + plugin→OPA); роли → profiles.
+- Solo-mode review: ADR-0012 (0 approvals при сохранении автогейтов).
 
 ---
 
 ## 5. Открытые пункты / блокеры
 
 1. **M0 закоммичен и запушен.** Commit `2570c2e` на `main` (repo public, branch protection активна).
-2. **PR #1 (`chore/m0-progress`) заблокирован: `REVIEW_REQUIRED`.** Branch protection требует
-   1 approving review + CODEOWNERS-review, но второй человек отложен в `docs/roadmap.md`. Пока
-   политика не выбрана, **ни один PR не может быть влит**. Варианты: (a) добавить второго
-   коллаборанта; (b) временно `required_approving_review_count=0` + `require_code_owner_reviews=false`
-   как documented solo-mode отклонение; (c) `enforce_admins=false` для solo-владельца.
-   Решение фиксируется отдельным ADR.
+2. **PR #1 (`chore/m0-progress`) разблокирован.** Политика review решена: **ADR-0012** —
+   solo-mode `required_approving_review_count=0` + `require_code_owner_reviews=false`; 15 required
+   checks, `enforce_admins`, PR-only и запрет force-push сохранены. Возврат к human review — при
+   появлении второго участника.
 3. **Создать `staging` environment** в GitHub с required reviewer (`release-approver`) — для M4/release gate.
 4. Опционально: `sudo apt install -y python3-venv` (не требуется, semgrep поставлен через `uv`).
 

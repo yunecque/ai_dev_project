@@ -110,10 +110,9 @@ plugin-хук `tool.execute.before`/`permission.ask` к OPA. Роли из сх�
 
 ### 6. Открытые вопросы
 
-- **Политика review в solo-mode.** Branch protection требует 1 approving review и
-  CODEOWNERS-review, но второй человек отложен в `docs/roadmap.md`. Пока не решено, ни один PR
-  не может быть влит. Варианты: добавить второго коллаборанта / временно ослабить требования
-  документированным отклонением / отключить `enforce_admins` для solo-владельца.
+- ~~Политика review в solo-mode~~ — **решено (ADR-0012):** `required_approving_review_count=0`,
+  `require_code_owner_reviews=false`, при сохранении 15 required checks, `enforce_admins`,
+  PR-only и запрета force-push. Возврат к human review — при появлении второго участника.
 - **Подтверждение минимального M1-стека** (Postgres + NATS + OPA, Keycloak опционально).
 
 ## Governance

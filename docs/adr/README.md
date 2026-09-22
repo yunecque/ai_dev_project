@@ -13,5 +13,6 @@
 | [0009](0009-keycloak-oidc.md) | Keycloak / OIDC и scoped service identities | accepted |
 | [0010](0010-observability.md) | Observability stack и redaction | accepted |
 | [0011](0011-enforcement-boundary-and-agent-placement.md) | Граница контроля и размещение IDE-агента | accepted |
+| [0012](0012-solo-mode-review-policy.md) | Solo-mode политика review при сохранении автогейтов | accepted (временно) |
 
 Новые решения добавляются файлом `NNNN-slug.md` и ADR + `/grill-security` + независимое approval.
