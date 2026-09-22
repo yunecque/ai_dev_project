@@ -3,7 +3,7 @@
 Наглядные схемы того, как устроена платформа и как ведётся работа. **Обновляется по мере
 прогресса** — при изменении потока правь соответствующую диаграмму и раздел «Прогресс».
 
-Статус milestone: **M0 ✅ · M1 ✅ · M2 ⏳ · M3 · M4 · M5**
+Статус milestone: **M0 ✅ · M1 ✅ · M2 ✅ · M3 ⏳ · M4 · M5**
 
 Источники: `README.md` (модель исполнения/контроля), `docs/adr/`, `PROGRESS.md`.
 
@@ -92,7 +92,9 @@ operator (иначе 403/PermissionDenied).
 `apps/gateway/server.go` (REST → gRPC, маппинг кодов), `apps/publisher/internal/outbox/poller.go`
 (маршрутизация `eventSubjects`), событие — `contracts/events/request-status-changed.schema.json`.
 Тесты: `apps/domain/internal/domain/{lifecycle,query}_test.go`, `apps/gateway/server_test.go`,
-`poller_test.go`, `test_contracts.py`.
+`poller_test.go`, `test_contracts.py`. Полный operator-flow e2e (create → 4 перехода → read-back,
+outbox: 1 created + 4 status-changed) — `postgres_integration_test.go`; async-часть —
+`worker/.../e2e_smoke_integration_test.go`.
 
 ---
 
@@ -129,8 +131,11 @@ sequenceDiagram
     end
 ```
 
-Реализация: `policies/pre_tool_call.rego`, `control-plane/src/sdlc/{policy,runner,evidence,trust}`.
-Тесты: `control-plane/tests/test_{policy,runner,evidence,negative_pipeline}.py`.
+Реализация: `policies/{pre_tool_call,artifact_transition}.rego`,
+`control-plane/src/sdlc/{policy,runner,evidence,trust,waiver}`.
+Тесты: `control-plane/tests/test_{policy,runner,evidence,negative_pipeline,waiver}.py`,
+`policies/tests/` (opa test). Из четырёх точек ADR-0004 реализованы `pre-tool-call` и
+`artifact-transition`; `pr-ci`/`pre-deployment` — M3/M4.
 
 ---
 
@@ -166,7 +171,7 @@ sequenceDiagram
 |---|---|---|
 | M0 Фундамент | ✅ | — |
 | M1 Walking skeleton | ✅ | §1, §3, §4 |
-| M2 Домен и lifecycle | ⏳ | §2 |
+| M2 Домен и lifecycle | ✅ | §2 |
 | M3 Supply chain hardening | — | (container-scan / sbom / sign) |
 | M4 Staging + observability | — | (otel pipeline) |
 | M5 Portfolio | — | (traceability, blocked attacks) |

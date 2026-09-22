@@ -4,8 +4,8 @@
 продолжает отсюда, прочитав также `AGENTS.md` и `ARCHITECTURE_BASELINE.md`.
 
 - Обновлено: 2026-09-22
-- Текущий milestone: **M2 — Домен и lifecycle** (в работе)
-- Предыдущий: **M1 — Walking skeleton** (завершён)
+- Текущий milestone: **M2 — Домен и lifecycle** (завершён)
+- Следующий: **M3 — Supply chain hardening**
 - Remote: https://github.com/yunecque/ai_dev_project (main, protected)
 - Наглядные схемы: `docs/sequences.md` (обновляется по мере прогресса)
 
@@ -17,7 +17,7 @@
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
 | M1 Walking skeleton | 100% | TASK-0001…0012 done; walking skeleton собран |
-| M2 Домен и lifecycle | ~85% | TASK-0001…0005 done; feature `FEAT-0002` |
+| M2 Домен и lifecycle | 100% | TASK-0001…0006 done; feature `FEAT-0002` |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
 | M5 Portfolio | не начат | |
@@ -274,7 +274,13 @@ Feature `FEAT-0002`: operator workflow, полная authz-матрица, waive
   - control-plane `sdlc.policy.artifact_transition`: `build_transition_input`,
     `evaluate_transition`, `build_transition_decision` (point `artifact-transition`).
   - CI `security-tests` включает `test_artifact_transition.py`; всего 104 passed.
-- [ ] **TASK-0006** — e2e operator-flow, обновление `docs/sequences.md` и `PROGRESS.md`.
+- [x] **TASK-0006** — e2e operator-flow, обновление `docs/sequences.md` и `PROGRESS.md`.
+  - worker `Handler` принимает оба типа событий (`request-created`, `request-status-changed`).
+  - `domain` integration: `TestOperatorLifecycleFlowIntegration` — create → 4 перехода → read-back,
+    outbox ровно `1` created + `4` status-changed.
+  - worker e2e: `TestStatusChangedEventSmoke` — канонический пример через embedded JetStream,
+    ровно один раз.
+  - docs: `sequences.md` (M2 ✅, e2e, точки policy), `PROGRESS.md` (M2 закрыт).
 
 ## 7. Полезные команды
 

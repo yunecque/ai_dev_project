@@ -13,6 +13,13 @@ const sampleEvent = `{
   "request": {"id": "22222222-2222-2222-2222-222222222222", "title": "t", "status": "created", "created_at": "2026-09-22T00:00:00Z"}
 }`
 
+const sampleStatusChanged = `{
+  "event_id": "44444444-4444-4444-4444-444444444444",
+  "event_type": "request-status-changed",
+  "occurred_at": "2026-09-22T10:30:00Z",
+  "request": {"id": "22222222-2222-2222-2222-222222222222", "status": "triaged", "previous_status": "created", "updated_at": "2026-09-22T10:30:00Z"}
+}`
+
 type failingDedupe struct{ err error }
 
 func (f failingDedupe) MarkProcessed(context.Context, string) (bool, error) {
@@ -35,6 +42,20 @@ func TestHandleAppliesFreshEventOnce(t *testing.T) {
 	}
 	if len(applied) != 1 {
 		t.Fatalf("applied %d times, want 1 (idempotent)", len(applied))
+	}
+}
+
+func TestHandleAcceptsStatusChangedEvent(t *testing.T) {
+	var applied []string
+	handler := NewHandler(NewMemoryDedupe(), func(_ context.Context, event Event) error {
+		applied = append(applied, event.EventType)
+		return nil
+	})
+	if err := handler.Handle(context.Background(), []byte(sampleStatusChanged)); err != nil {
+		t.Fatalf("Handle: %v", err)
+	}
+	if len(applied) != 1 || applied[0] != EventTypeRequestStatusChanged {
+		t.Fatalf("applied = %v", applied)
 	}
 }
 
