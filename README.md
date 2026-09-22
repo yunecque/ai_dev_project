@@ -122,6 +122,7 @@ plugin-хук `tool.execute.before`/`permission.ask` к OPA. Роли из сх�
 - Архитектурные решения: `docs/adr/`.
 - Roadmap и отложенный backlog: `docs/roadmap.md`.
 - Модель evidence: `docs/evidence-model.md`.
+- Схемы последовательностей (наглядно, обновляются): `docs/sequences.md`.
 - Схемы workflow-артефактов: `contracts/schemas/`.
 - Git — единственный source of truth. Markdown генерируется из JSON-артефактов.
 - Модель исполнения/контроля и размещение агента: раздел выше + ADR-0011.

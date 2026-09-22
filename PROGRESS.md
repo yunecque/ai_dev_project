@@ -7,6 +7,7 @@
 - Текущий milestone: **M1 — Walking skeleton** (завершён)
 - Следующий: **M2 — Домен и lifecycle**
 - Remote: https://github.com/yunecque/ai_dev_project (main, protected)
+- Наглядные схемы: `docs/sequences.md` (обновляется по мере прогресса)
 
 ---
 
