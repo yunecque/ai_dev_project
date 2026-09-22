@@ -15,7 +15,7 @@
 | Milestone | Статус | Примечание |
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
-| M1 Walking skeleton | ~90% | TASK-0001…0008 done; остался CI-стадии (TASK-0009) |
+| M1 Walking skeleton | ~95% | TASK-0001…0009 done; остались sast/security/build-image |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
@@ -113,7 +113,7 @@ contracts/schemas/                # 12 JSON Schema (workflow artifacts)
 contracts/openapi/requests.yaml   # REST-контракт golden path (OpenAPI 3.1)
 contracts/proto/domain/v1/domain.proto  # gRPC-контракт DomainService
 contracts/events/                 # request-created.schema.json + examples/
-policies/                         # пусто — M1
+policies/                         # pre_tool_call.rego (Rego v1) + tests/
 security/{threat-models,tests}/   # пусто — M1
 infra/compose/                    # рабочий стек
 infra/wsl/                        # bootstrap-toolchain.sh + README + lock
@@ -187,8 +187,16 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
   - `publisher`↔NATS и `worker`↔NATS: встроенный JetStream, идемпотентность дубликата.
   - CI: джоба `integration-tests` с сервисом Postgres + `go test -tags=integration ./...`.
   - Осталось (перенесено): authorization/security/negative_pipeline/e2e_smoke — в TASK-0009.
-- [ ] **TASK-0009** — реализовать оставшиеся заглушки CI (`contract-tests`, `sast`,
-  `security-tests`, `policy-check`, `build-image`) и тесты authorization/security/negative/e2e.
+- [x] **TASK-0009** — CI-стадии `policy-check` и `contract-tests`.
+  - `policies/pre_tool_call.rego` (Rego v1): allowlist инструментов, запрет sensitive-путей
+    (`.env`, `secrets/`, `*.key`, ...), fail-closed deny с reason codes; query path
+    `/v1/data/sdlc/pre_tool_call/decision` (совпадает с `PolicyClient`).
+  - `policies/tests/pre_tool_call_test.rego`: 7 тестов. CI: `opa fmt --fail` + `opa test`.
+  - compose OPA обновлён 0.68.0 → 1.20.2 (Rego v1).
+  - `contract-tests`: `buf lint contracts/proto` + `pytest control-plane/tests/test_contracts.py`.
+- [ ] **TASK-0010** — CI-стадии `sast` (Semgrep) и `security-tests` (Trivy).
+- [ ] **TASK-0011** — CI-стадия `build-image` + Dockerfile'ы сервисов.
+- [ ] **TASK-0012** — тесты authorization/negative_pipeline/e2e_smoke.
 
 ## 7. Полезные команды
 

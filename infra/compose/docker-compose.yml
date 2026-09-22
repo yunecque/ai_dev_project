@@ -47,7 +47,7 @@ services:
       - ./keycloak:/opt/keycloak/data/import:ro
 
   opa:
-    image: openpolicyagent/opa:0.68.0
+    image: openpolicyagent/opa:1.20.2
     command: ["run", "--server", "--log-level=info", "/policies"]
     ports:
       - "8181:8181"
