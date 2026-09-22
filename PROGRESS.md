@@ -15,7 +15,7 @@
 | Milestone | Статус | Примечание |
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
-| M1 Walking skeleton | ~55% | TASK-0001…0005 done (Go gateway) |
+| M1 Walking skeleton | ~70% | TASK-0001…0006 done (Go gateway + domain) |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
@@ -102,7 +102,8 @@ sdlc validate ../baseline.json           # OK
 ## 4. Что уже в репозитории
 
 ```
-apps/{gateway,domain,worker}/     # gateway: REST+OIDC+gRPC (Go, TASK-0005) — остальное M1
+apps/{gateway,domain,worker}/     # gateway: REST+OIDC+gRPC; domain: gRPC+outbox (Go)
+apps/domain/migrations/0001_init.sql  # requests + outbox (pending publisher)
 apps/go.mod                       # единый Go-модуль github.com/yunecque/ai_dev_project/apps
 apps/gen/domain/v1/               # сгенерированный из proto код (buf, local plugins)
 control-plane/                    # Python 3.12: src/sdlc (artifacts, policy, runner, evidence), tests
@@ -167,7 +168,11 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
   - `gateway`: `POST /requests` (Bearer JWT → subject → gRPC `CreateRequest`), `GET /healthz`;
     OIDC verifier (`go-oidc`); fail-closed 401/400/502. Тесты через bufconn + fake verifier (10).
   - CI: Go-шаги переведены на `apps/go.mod` (`go-version-file`, `gofmt`, `go vet`, `go test`).
-- [ ] **TASK-0006** — `apps/domain` (Go): gRPC + Postgres + transactional outbox.
+- [x] **TASK-0006** — `apps/domain` (Go): gRPC + Postgres + transactional outbox.
+  - `internal/domain`: `Service` (gRPC `DomainService`), `Store` interface,
+    `MemoryStore` (tests/dev), `PostgresStore` (pgx, atomic insert request+outbox),
+    `migrations/0001_init.sql`. Тесты: request+event в одной транзакции, валидация,
+    сверка outbox payload с контрактом события (9). Go: gofmt/vet/test зелёные.
 - [ ] **TASK-0007** — outbox publisher → NATS; `apps/worker` идемпотентный consumer.
 - [ ] **TASK-0008** — тесты: unit, api_acceptance, authorization, grpc_contract, event_contract,
   integration, security, negative_pipeline, e2e_smoke.
