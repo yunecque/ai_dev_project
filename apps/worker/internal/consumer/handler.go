@@ -8,7 +8,15 @@ import (
 	"fmt"
 )
 
-const EventTypeRequestCreated = "request-created"
+const (
+	EventTypeRequestCreated       = "request-created"
+	EventTypeRequestStatusChanged = "request-status-changed"
+)
+
+var supportedEventTypes = map[string]struct{}{
+	EventTypeRequestCreated:       {},
+	EventTypeRequestStatusChanged: {},
+}
 
 // Event is the wire representation of a domain event.
 type Event struct {
@@ -51,7 +59,7 @@ func (h *Handler) Handle(ctx context.Context, data []byte) error {
 	if event.EventID == "" {
 		return errors.New("event_id is required")
 	}
-	if event.EventType != EventTypeRequestCreated {
+	if _, supported := supportedEventTypes[event.EventType]; !supported {
 		return fmt.Errorf("unsupported event type %q", event.EventType)
 	}
 	fresh, err := h.dedupe.MarkProcessed(ctx, event.EventID)

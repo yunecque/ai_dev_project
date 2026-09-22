@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	domainv1 "github.com/yunecque/ai_dev_project/apps/gen/domain/v1"
 )
 
 const (
@@ -205,6 +206,81 @@ func TestPostgresStoreListRequestsFilters(t *testing.T) {
 	}
 	if len(bySubject) != 1 || bySubject[0].ID != first.ID {
 		t.Fatalf("bySubject = %+v", bySubject)
+	}
+}
+
+// TestOperatorLifecycleFlowIntegration exercises the full operator lifecycle against Postgres:
+// create -> triaged -> in_progress -> resolved -> closed, then reads it back and checks the
+// outbox contains exactly one created event plus four status-changed events (M2, TASK-0006).
+func TestOperatorLifecycleFlowIntegration(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL not set")
+	}
+	ctx := context.Background()
+
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("pool: %v", err)
+	}
+	defer pool.Close()
+	applyMigrations(t, ctx, pool)
+	if _, err := pool.Exec(ctx, "TRUNCATE requests, outbox"); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+
+	store, err := NewPostgresStore(ctx, dsn)
+	if err != nil {
+		t.Fatalf("store: %v", err)
+	}
+	defer store.Close()
+	service := NewService(store)
+
+	created, err := service.CreateRequest(ctx, &domainv1.CreateRequestRequest{Title: "flow", Subject: "user-1"})
+	if err != nil {
+		t.Fatalf("CreateRequest: %v", err)
+	}
+	id := created.GetRequest().GetId()
+
+	for _, next := range []string{statusTriaged, statusInProgress, statusResolved, statusClosed} {
+		if _, err := service.UpdateRequestStatus(ctx, &domainv1.UpdateRequestStatusRequest{
+			RequestId:    id,
+			NewStatus:    next,
+			ActorSubject: "operator-1",
+			ActorRole:    roleOperator,
+		}); err != nil {
+			t.Fatalf("transition to %s: %v", next, err)
+		}
+	}
+
+	got, err := service.GetRequest(ctx, &domainv1.GetRequestRequest{
+		RequestId:    id,
+		ActorSubject: "user-1",
+		ActorRole:    roleUser,
+	})
+	if err != nil {
+		t.Fatalf("GetRequest: %v", err)
+	}
+	if got.GetRequest().GetStatus() != statusClosed {
+		t.Fatalf("final status = %q, want closed", got.GetRequest().GetStatus())
+	}
+
+	var requests, createdEvents, changedEvents int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM requests").Scan(&requests); err != nil {
+		t.Fatalf("count requests: %v", err)
+	}
+	if err := pool.QueryRow(ctx,
+		"SELECT count(*) FROM outbox WHERE event_type = $1", eventTypeRequestCreated,
+	).Scan(&createdEvents); err != nil {
+		t.Fatalf("count created events: %v", err)
+	}
+	if err := pool.QueryRow(ctx,
+		"SELECT count(*) FROM outbox WHERE event_type = $1", eventTypeRequestStatusChanged,
+	).Scan(&changedEvents); err != nil {
+		t.Fatalf("count status events: %v", err)
+	}
+	if requests != 1 || createdEvents != 1 || changedEvents != 4 {
+		t.Fatalf("requests=%d created=%d changed=%d, want 1/1/4", requests, createdEvents, changedEvents)
 	}
 }
 
