@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/events/request-created.schema.json",
+  "title": "RequestCreated",
+  "description": "Domain event emitted when a request is created (transactional outbox -> NATS JetStream).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "request"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "request-created" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "status", "created_at"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "title": { "type": "string", "minLength": 1 },
+        "status": { "type": "string", "enum": ["created"] },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

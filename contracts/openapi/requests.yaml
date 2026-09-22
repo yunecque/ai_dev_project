@@ -1,0 +1,71 @@
+openapi: 3.1.0
+info:
+  title: Requests API
+  version: 1.0.0
+  description: External REST contract (OpenAPI 3.1) for the request-creation golden path.
+servers:
+  - url: http://localhost:8081
+    description: local gateway
+
+paths:
+  /requests:
+    post:
+      operationId: createRequest
+      summary: Create a request
+      description: Creates a request for the authenticated subject and emits RequestCreated.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRequest'
+      responses:
+        '201':
+          description: Request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Request'
+        '400':
+          description: Invalid input
+        '401':
+          description: Unauthenticated
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CreateRequest:
+      type: object
+      additionalProperties: false
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+          maxLength: 4000
+    Request:
+      type: object
+      additionalProperties: false
+      required: [id, title, status, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+        status:
+          type: string
+          enum: [created]
+        created_at:
+          type: string
+          format: date-time
