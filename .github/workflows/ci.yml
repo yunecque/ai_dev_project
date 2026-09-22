@@ -134,7 +134,21 @@ jobs:
   sast:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "::warning::sast (Semgrep/CodeQL) implemented in M1"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Semgrep
+        run: pip install "semgrep>=1.177,<2"
+      - name: Semgrep (local rules)
+        run: |
+          semgrep scan --config security/semgrep/rules.yaml --json --metrics=off apps control-plane > semgrep.json
+          if grep -q '"check_id"' semgrep.json; then
+            echo "Semgrep findings detected:"
+            cat semgrep.json
+            exit 1
+          fi
+          echo "semgrep: no findings"
 
   dependency-scan:
     runs-on: ubuntu-latest
@@ -170,7 +184,19 @@ jobs:
   security-tests:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "::warning::security-tests implemented in M1"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Control-plane security tests
+        run: |
+          pip install -e "control-plane[dev]"
+          pytest control-plane/tests/test_policy.py control-plane/tests/test_runner.py \
+            control-plane/tests/test_evidence.py control-plane/tests/test_trust.py -q
+      - name: Install Trivy
+        run: curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.74.0
+      - name: Trivy secret scan
+        run: trivy fs --scanners secret --exit-code 1 --severity HIGH,CRITICAL --skip-dirs .git .
 
   policy-check:
     runs-on: ubuntu-latest
