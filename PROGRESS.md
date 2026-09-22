@@ -15,7 +15,7 @@
 | Milestone | Статус | Примечание |
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
-| M1 Walking skeleton | ~30% | TASK-0001…0003 done |
+| M1 Walking skeleton | ~40% | TASK-0001…0004 done |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
@@ -103,7 +103,7 @@ sdlc validate ../baseline.json           # OK
 
 ```
 apps/{gateway,domain,worker}/     # пусто — код M1
-control-plane/                    # Python 3.12: src/sdlc (artifacts, policy, runner), tests
+control-plane/                    # Python 3.12: src/sdlc (artifacts, policy, runner, evidence), tests
 contracts/schemas/                # 12 JSON Schema (workflow artifacts)
 contracts/openapi/requests.yaml   # REST-контракт golden path (OpenAPI 3.1)
 contracts/proto/domain/v1/domain.proto  # gRPC-контракт DomainService
@@ -156,6 +156,9 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
   - `RunRegistry` (start/finish/issue/check), HMAC-signed `v1.<payload>.<sig>` capabilities,
     fail-closed (malformed/tampered/expired/mismatch/unknown/revoked), `tests/test_runner.py` (11).
 - [ ] **TASK-0004** — control-plane `evidence`: compression layer + recovery handle; `trust` tiers.
+  - [x] сделано: `trust.py` (tiers + `classify_source`/`can_use_as_instruction`),
+    `evidence/` (EvidenceStore content-addressed, compress_for_context, build_evidence_record,
+    process_tool_output с запретом sensitive в контексте), `tests/test_trust.py` + `test_evidence.py` (20).
 - [ ] **TASK-0005** — `apps/gateway` (Go): REST + OIDC validation + gRPC client.
 - [ ] **TASK-0006** — `apps/domain` (Go): gRPC + Postgres + transactional outbox.
 - [ ] **TASK-0007** — outbox publisher → NATS; `apps/worker` идемпотентный consumer.
