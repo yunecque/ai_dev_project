@@ -21,6 +21,8 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	DomainService_CreateRequest_FullMethodName       = "/domain.v1.DomainService/CreateRequest"
 	DomainService_UpdateRequestStatus_FullMethodName = "/domain.v1.DomainService/UpdateRequestStatus"
+	DomainService_GetRequest_FullMethodName          = "/domain.v1.DomainService/GetRequest"
+	DomainService_ListRequests_FullMethodName        = "/domain.v1.DomainService/ListRequests"
 )
 
 // DomainServiceClient is the client API for DomainService service.
@@ -32,6 +34,10 @@ type DomainServiceClient interface {
 	CreateRequest(ctx context.Context, in *CreateRequestRequest, opts ...grpc.CallOption) (*CreateRequestResponse, error)
 	// Applies a lifecycle transition to an existing request and emits RequestStatusChanged.
 	UpdateRequestStatus(ctx context.Context, in *UpdateRequestStatusRequest, opts ...grpc.CallOption) (*UpdateRequestStatusResponse, error)
+	// Reads a single request by id (operator workflow).
+	GetRequest(ctx context.Context, in *GetRequestRequest, opts ...grpc.CallOption) (*GetRequestResponse, error)
+	// Lists requests with optional status/subject filters (operator workflow).
+	ListRequests(ctx context.Context, in *ListRequestsRequest, opts ...grpc.CallOption) (*ListRequestsResponse, error)
 }
 
 type domainServiceClient struct {
@@ -62,6 +68,26 @@ func (c *domainServiceClient) UpdateRequestStatus(ctx context.Context, in *Updat
 	return out, nil
 }
 
+func (c *domainServiceClient) GetRequest(ctx context.Context, in *GetRequestRequest, opts ...grpc.CallOption) (*GetRequestResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetRequestResponse)
+	err := c.cc.Invoke(ctx, DomainService_GetRequest_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *domainServiceClient) ListRequests(ctx context.Context, in *ListRequestsRequest, opts ...grpc.CallOption) (*ListRequestsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListRequestsResponse)
+	err := c.cc.Invoke(ctx, DomainService_ListRequests_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DomainServiceServer is the server API for DomainService service.
 // All implementations must embed UnimplementedDomainServiceServer
 // for forward compatibility.
@@ -71,6 +97,10 @@ type DomainServiceServer interface {
 	CreateRequest(context.Context, *CreateRequestRequest) (*CreateRequestResponse, error)
 	// Applies a lifecycle transition to an existing request and emits RequestStatusChanged.
 	UpdateRequestStatus(context.Context, *UpdateRequestStatusRequest) (*UpdateRequestStatusResponse, error)
+	// Reads a single request by id (operator workflow).
+	GetRequest(context.Context, *GetRequestRequest) (*GetRequestResponse, error)
+	// Lists requests with optional status/subject filters (operator workflow).
+	ListRequests(context.Context, *ListRequestsRequest) (*ListRequestsResponse, error)
 	mustEmbedUnimplementedDomainServiceServer()
 }
 
@@ -86,6 +116,12 @@ func (UnimplementedDomainServiceServer) CreateRequest(context.Context, *CreateRe
 }
 func (UnimplementedDomainServiceServer) UpdateRequestStatus(context.Context, *UpdateRequestStatusRequest) (*UpdateRequestStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateRequestStatus not implemented")
+}
+func (UnimplementedDomainServiceServer) GetRequest(context.Context, *GetRequestRequest) (*GetRequestResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetRequest not implemented")
+}
+func (UnimplementedDomainServiceServer) ListRequests(context.Context, *ListRequestsRequest) (*ListRequestsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListRequests not implemented")
 }
 func (UnimplementedDomainServiceServer) mustEmbedUnimplementedDomainServiceServer() {}
 func (UnimplementedDomainServiceServer) testEmbeddedByValue()                       {}
@@ -144,6 +180,42 @@ func _DomainService_UpdateRequestStatus_Handler(srv interface{}, ctx context.Con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DomainService_GetRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetRequestRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DomainServiceServer).GetRequest(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DomainService_GetRequest_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DomainServiceServer).GetRequest(ctx, req.(*GetRequestRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _DomainService_ListRequests_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListRequestsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DomainServiceServer).ListRequests(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DomainService_ListRequests_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DomainServiceServer).ListRequests(ctx, req.(*ListRequestsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DomainService_ServiceDesc is the grpc.ServiceDesc for DomainService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -158,6 +230,14 @@ var DomainService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateRequestStatus",
 			Handler:    _DomainService_UpdateRequestStatus_Handler,
+		},
+		{
+			MethodName: "GetRequest",
+			Handler:    _DomainService_GetRequest_Handler,
+		},
+		{
+			MethodName: "ListRequests",
+			Handler:    _DomainService_ListRequests_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

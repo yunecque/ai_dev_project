@@ -17,7 +17,7 @@
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
 | M1 Walking skeleton | 100% | TASK-0001…0012 done; walking skeleton собран |
-| M2 Домен и lifecycle | ~15% | TASK-0001 done; feature `FEAT-0002` |
+| M2 Домен и lifecycle | ~35% | TASK-0001/0002 done; feature `FEAT-0002` |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
 | M5 Portfolio | не начат | |
@@ -92,7 +92,7 @@ semgrep=1.177.0  uv=0.12.17
 cd control-plane
 python -m ruff check src tests      # All checks passed
 python -m mypy                      # Success: no issues found (17 files, strict)
-python -m pytest -q                 # 75 passed
+python -m pytest -q                 # 77 passed
 sdlc validate ../specs/examples/*.json   # все OK
 sdlc validate ../baseline.json           # OK
 
@@ -238,8 +238,13 @@ Feature `FEAT-0002`: operator workflow, полная authz-матрица, waive
     тип; JetStream-стрим `REQUESTS` принимает оба subject'а (`requests.created`,
     `requests.status-changed`).
   - control-plane `test_contracts.py`: схема/пример статус-события, proto RPC (+5 тестов, 75 всего).
-- [ ] **TASK-0002** — operator workflow API: `GET /requests`, `GET /requests/{id}`,
+- [x] **TASK-0002** — operator workflow API: `GET /requests`, `GET /requests/{id}`,
   `PATCH /requests/{id}/status` (OpenAPI + gateway).
+  - [x] proto: `GetRequest`, `ListRequests` RPC; `ListFilter` в domain (`MemoryStore`+`PostgresStore`,
+    сортировка newest-first, cap limit); gateway handlers + маппинг gRPC→HTTP
+    (`NotFound→404`, `FailedPrecondition→409`, `InvalidArgument→400`, иначе 502).
+  - [x] OpenAPI 1.1.0: paths + `RequestStatus`/`UpdateRequestStatus`/`RequestList`; контракт-тесты.
+  - [x] тесты: domain query (8), gateway (11), Postgres list (integration), +2 contract (77 всего).
 - [ ] **TASK-0003** — полная authz-матрица (роли requester/operator/admin).
 - [ ] **TASK-0004** — waiver-механика (валидация, истечение, запрет для агента).
 - [ ] **TASK-0005** — OPA точка `artifact-transition`.

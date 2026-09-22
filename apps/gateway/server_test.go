@@ -29,8 +29,11 @@ func (f fakeVerifier) Verify(context.Context, string) (string, error) {
 
 type fakeDomain struct {
 	domainv1.UnimplementedDomainServiceServer
-	err        error
-	gotSubject string
+	err          error
+	gotSubject   string
+	gotActor     string
+	gotNewStatus string
+	requests     []*domainv1.Request
 }
 
 func (f *fakeDomain) CreateRequest(_ context.Context, in *domainv1.CreateRequestRequest) (*domainv1.CreateRequestResponse, error) {
@@ -46,6 +49,49 @@ func (f *fakeDomain) CreateRequest(_ context.Context, in *domainv1.CreateRequest
 			CreatedAt: "2026-09-22T00:00:00Z",
 		},
 	}, nil
+}
+
+func (f *fakeDomain) UpdateRequestStatus(_ context.Context, in *domainv1.UpdateRequestStatusRequest) (*domainv1.UpdateRequestStatusResponse, error) {
+	f.gotActor = in.GetActorSubject()
+	f.gotNewStatus = in.GetNewStatus()
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &domainv1.UpdateRequestStatusResponse{
+		Request: &domainv1.Request{
+			Id:        in.GetRequestId(),
+			Title:     "Reset VPN",
+			Status:    in.GetNewStatus(),
+			CreatedAt: "2026-09-22T00:00:00Z",
+		},
+	}, nil
+}
+
+func (f *fakeDomain) GetRequest(_ context.Context, in *domainv1.GetRequestRequest) (*domainv1.GetRequestResponse, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return &domainv1.GetRequestResponse{
+		Request: &domainv1.Request{
+			Id:        in.GetRequestId(),
+			Title:     "Reset VPN",
+			Status:    "created",
+			CreatedAt: "2026-09-22T00:00:00Z",
+		},
+	}, nil
+}
+
+func (f *fakeDomain) ListRequests(_ context.Context, _ *domainv1.ListRequestsRequest) (*domainv1.ListRequestsResponse, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	requests := f.requests
+	if requests == nil {
+		requests = []*domainv1.Request{
+			{Id: "r-1", Title: "Reset VPN", Status: "created", CreatedAt: "2026-09-22T00:00:00Z"},
+		}
+	}
+	return &domainv1.ListRequestsResponse{Requests: requests}, nil
 }
 
 func startDomain(t *testing.T, impl domainv1.DomainServiceServer) domainv1.DomainServiceClient {
@@ -87,6 +133,24 @@ func newTestServer(t *testing.T, verifier tokenVerifier, domain domainv1.DomainS
 func postCreate(t *testing.T, ts *httptest.Server, token, body string) *http.Response {
 	t.Helper()
 	request, err := http.NewRequest(http.MethodPost, ts.URL+"/requests", strings.NewReader(body))
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	if token != "" {
+		request.Header.Set("Authorization", "Bearer "+token)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	response, err := ts.Client().Do(request)
+	if err != nil {
+		t.Fatalf("do request: %v", err)
+	}
+	t.Cleanup(func() { _ = response.Body.Close() })
+	return response
+}
+
+func doRequest(t *testing.T, ts *httptest.Server, method, path, token, body string) *http.Response {
+	t.Helper()
+	request, err := http.NewRequest(method, ts.URL+path, strings.NewReader(body))
 	if err != nil {
 		t.Fatalf("new request: %v", err)
 	}
@@ -185,5 +249,124 @@ func TestDomainFailureIsBadGateway(t *testing.T) {
 func TestNewOIDCVerifierRequiresIssuer(t *testing.T) {
 	if _, err := newOIDCVerifier(context.Background(), "", "client"); err == nil {
 		t.Fatal("expected error for empty issuer")
+	}
+}
+
+func TestListRequestsSucceeds(t *testing.T) {
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, &fakeDomain{})
+	response := doRequest(t, ts, http.MethodGet, "/requests", "good", "")
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.StatusCode)
+	}
+	var body requestListResponse
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if len(body.Requests) != 1 || body.Requests[0].ID != "r-1" {
+		t.Fatalf("unexpected body: %+v", body)
+	}
+}
+
+func TestListRequestsRequiresAuth(t *testing.T) {
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, &fakeDomain{})
+	response := doRequest(t, ts, http.MethodGet, "/requests", "", "")
+	if response.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", response.StatusCode)
+	}
+}
+
+func TestListRequestsRejectsBadLimit(t *testing.T) {
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, &fakeDomain{})
+	response := doRequest(t, ts, http.MethodGet, "/requests?limit=0", "good", "")
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", response.StatusCode)
+	}
+}
+
+func TestGetRequestSucceeds(t *testing.T) {
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, &fakeDomain{})
+	response := doRequest(t, ts, http.MethodGet, "/requests/r-1", "good", "")
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.StatusCode)
+	}
+	var body requestResponse
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.ID != "r-1" {
+		t.Fatalf("id = %q, want r-1", body.ID)
+	}
+}
+
+func TestGetRequestNotFoundIs404(t *testing.T) {
+	domain := &fakeDomain{err: status.Error(codes.NotFound, "nope")}
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, domain)
+	response := doRequest(t, ts, http.MethodGet, "/requests/missing", "good", "")
+	if response.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", response.StatusCode)
+	}
+}
+
+func TestUpdateStatusSucceedsAndForwardsActor(t *testing.T) {
+	domain := &fakeDomain{}
+	ts, _ := newTestServer(t, fakeVerifier{subject: "operator-9"}, domain)
+	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "good", `{"status":"triaged"}`)
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.StatusCode)
+	}
+	if domain.gotActor != "operator-9" {
+		t.Fatalf("actor forwarded = %q, want operator-9", domain.gotActor)
+	}
+	if domain.gotNewStatus != "triaged" {
+		t.Fatalf("new status forwarded = %q, want triaged", domain.gotNewStatus)
+	}
+	var body requestResponse
+	if err := json.NewDecoder(response.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Status != "triaged" {
+		t.Fatalf("status = %q, want triaged", body.Status)
+	}
+}
+
+func TestUpdateStatusRequiresAuth(t *testing.T) {
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, &fakeDomain{})
+	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "", `{"status":"triaged"}`)
+	if response.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want 401", response.StatusCode)
+	}
+}
+
+func TestUpdateStatusMissingStatusIs400(t *testing.T) {
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, &fakeDomain{})
+	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "good", `{}`)
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", response.StatusCode)
+	}
+}
+
+func TestUpdateStatusRejectsUnknownField(t *testing.T) {
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, &fakeDomain{})
+	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "good", `{"status":"triaged","x":1}`)
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", response.StatusCode)
+	}
+}
+
+func TestUpdateStatusIllegalTransitionIs409(t *testing.T) {
+	domain := &fakeDomain{err: status.Error(codes.FailedPrecondition, "illegal transition")}
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, domain)
+	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "good", `{"status":"resolved"}`)
+	if response.StatusCode != http.StatusConflict {
+		t.Fatalf("status = %d, want 409", response.StatusCode)
+	}
+}
+
+func TestUpdateStatusUnknownRequestIs404(t *testing.T) {
+	domain := &fakeDomain{err: status.Error(codes.NotFound, "nope")}
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, domain)
+	response := doRequest(t, ts, http.MethodPatch, "/requests/missing/status", "good", `{"status":"triaged"}`)
+	if response.StatusCode != http.StatusNotFound {
+		t.Fatalf("status = %d, want 404", response.StatusCode)
 	}
 }

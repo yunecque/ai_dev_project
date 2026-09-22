@@ -115,6 +115,28 @@ def test_openapi_is_3_1_and_exposes_create_request() -> None:
     assert "bearerAuth" in spec["components"]["securitySchemes"]
 
 
+def test_openapi_exposes_operator_workflow() -> None:
+    spec = _openapi()
+    paths = spec["paths"]
+    assert "get" in paths["/requests"]
+    assert "get" in paths["/requests/{id}"]
+    assert "patch" in paths["/requests/{id}/status"]
+    assert paths["/requests"]["get"]["operationId"] == "listRequests"
+    assert paths["/requests/{id}"]["get"]["operationId"] == "getRequest"
+    assert paths["/requests/{id}/status"]["patch"]["operationId"] == "updateRequestStatus"
+    schemas = spec["components"]["schemas"]
+    assert {"RequestStatus", "UpdateRequestStatus", "RequestList"} <= set(schemas)
+
+
+def test_openapi_status_enum_matches_lifecycle_event() -> None:
+    status_enum = _openapi()["components"]["schemas"]["RequestStatus"]["enum"]
+    event_enum = _event_schema("request-status-changed")["properties"]["request"]["properties"]["status"]["enum"]
+    assert status_enum == event_enum
+    patch = _openapi()["paths"]["/requests/{id}/status"]["patch"]
+    body = patch["requestBody"]["content"]["application/json"]["schema"]
+    assert _ref_name(body["$ref"]) == "UpdateRequestStatus"
+
+
 def test_openapi_schemas_match_event_contract() -> None:
     schemas = _openapi()["components"]["schemas"]
     assert schemas["CreateRequest"]["required"] == ["title"]
@@ -134,5 +156,7 @@ def test_proto_declares_domain_service_and_messages() -> None:
         "rpc UpdateRequestStatus(UpdateRequestStatusRequest) returns (UpdateRequestStatusResponse)"
         in text
     )
+    assert "rpc GetRequest(GetRequestRequest) returns (GetRequestResponse)" in text
+    assert "rpc ListRequests(ListRequestsRequest) returns (ListRequestsResponse)" in text
     assert "message RequestCreated" in text
     assert "message RequestStatusChanged" in text
