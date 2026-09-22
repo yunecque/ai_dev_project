@@ -15,7 +15,7 @@
 | Milestone | Статус | Примечание |
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
-| M1 Walking skeleton | ~95% | TASK-0001…0009 done; остались sast/security/build-image |
+| M1 Walking skeleton | ~98% | TASK-0001…0010 done; остались build-image, e2e |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
@@ -194,8 +194,12 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
   - `policies/tests/pre_tool_call_test.rego`: 7 тестов. CI: `opa fmt --fail` + `opa test`.
   - compose OPA обновлён 0.68.0 → 1.20.2 (Rego v1).
   - `contract-tests`: `buf lint contracts/proto` + `pytest control-plane/tests/test_contracts.py`.
-- [ ] **TASK-0010** — CI-стадии `sast` (Semgrep) и `security-tests` (Trivy).
-- [ ] **TASK-0011** — CI-стадия `build-image` + Dockerfile'ы сервисов.
+- [x] **TASK-0010** — CI-стадии `sast` и `security-tests`.
+  - `security/semgrep/rules.yaml`: локальные правила (shell=True, eval/exec, TLS skip-verify,
+    requests verify=False); CI `sast` = `semgrep scan --config ... --error`.
+  - CI `security-tests` = control-plane security-тесты (policy/runner/evidence/trust) +
+    `trivy fs --scanners secret --exit-code 1`.
+- [ ] **TASK-0011** — CI-стадия `build-image` + Dockerfile'ы сервисов (+ `dependency-scan` Trivy).
 - [ ] **TASK-0012** — тесты authorization/negative_pipeline/e2e_smoke.
 
 ## 7. Полезные команды

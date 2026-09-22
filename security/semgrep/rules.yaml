@@ -1,0 +1,37 @@
+rules:
+  - id: python-subprocess-shell-true
+    languages: [python]
+    severity: ERROR
+    message: >-
+      subprocess with shell=True enables command injection. Pass an argument list instead.
+    metadata:
+      category: security
+      references: ["https://owasp.org/www-community/attacks/Command_Injection"]
+    patterns:
+      - pattern: subprocess.$FUNC(..., shell=True, ...)
+
+  - id: python-eval-exec
+    languages: [python]
+    severity: ERROR
+    message: Avoid eval()/exec() on untrusted input.
+    metadata:
+      category: security
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: exec(...)
+
+  - id: go-tls-insecure-skip-verify
+    languages: [go]
+    severity: ERROR
+    message: TLS certificate verification is disabled (InsecureSkipVerify: true).
+    metadata:
+      category: security
+    pattern: tls.Config{..., InsecureSkipVerify: true, ...}
+
+  - id: python-requests-verify-false
+    languages: [python]
+    severity: ERROR
+    message: TLS verification disabled in requests (verify=False).
+    metadata:
+      category: security
+    pattern: requests.$METHOD(..., verify=False, ...)
