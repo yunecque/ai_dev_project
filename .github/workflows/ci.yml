@@ -197,7 +197,7 @@ jobs:
           pip install -e "control-plane[dev]"
           pytest control-plane/tests/test_policy.py control-plane/tests/test_runner.py \
             control-plane/tests/test_evidence.py control-plane/tests/test_trust.py \
-            control-plane/tests/test_waiver.py -q
+            control-plane/tests/test_waiver.py control-plane/tests/test_artifact_transition.py -q
       - name: Install Trivy
         run: curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.74.0
       - name: Trivy secret scan

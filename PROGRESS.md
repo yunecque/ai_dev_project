@@ -17,7 +17,7 @@
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
 | M1 Walking skeleton | 100% | TASK-0001…0012 done; walking skeleton собран |
-| M2 Домен и lifecycle | ~70% | TASK-0001…0004 done; feature `FEAT-0002` |
+| M2 Домен и lifecycle | ~85% | TASK-0001…0005 done; feature `FEAT-0002` |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
 | M5 Portfolio | не начат | |
@@ -92,7 +92,7 @@ semgrep=1.177.0  uv=0.12.17
 cd control-plane
 python -m ruff check src tests      # All checks passed
 python -m mypy                      # Success: no issues found (17 files, strict)
-python -m pytest -q                 # 99 passed
+python -m pytest -q                 # 104 passed
 sdlc validate ../specs/examples/*.json   # все OK
 sdlc validate ../baseline.json           # OK
 
@@ -103,7 +103,7 @@ go test ./...                       # unit
 go test -tags=integration ./...     # integration (Postgres gated by TEST_DATABASE_URL)
 
 # policy (Rego)
-opa fmt --fail policies/ && opa test policies/   # 7/7
+opa fmt --fail policies/ && opa test policies/   # 23/23
 ```
 
 CI: 15 required checks; `build-image` собирает 4 образа, `dependency-scan` (Trivy),
@@ -126,7 +126,7 @@ contracts/schemas/                # 12 JSON Schema (workflow artifacts)
 contracts/openapi/requests.yaml   # REST-контракт golden path (OpenAPI 3.1)
 contracts/proto/domain/v1/domain.proto  # gRPC-контракт DomainService
 contracts/events/                 # request-created.schema.json + examples/
-policies/                         # pre_tool_call.rego (Rego v1) + tests/
+policies/                         # pre_tool_call.rego + artifact_transition.rego (Rego v1) + tests/
 security/{threat-models,tests}/   # пусто — M1
 infra/compose/                    # рабочий стек
 infra/wsl/                        # bootstrap-toolchain.sh + README + lock
@@ -264,7 +264,16 @@ Feature `FEAT-0002`: operator workflow, полная authz-матрица, waive
   - CLI: `sdlc waiver <path> [--now]` (schema + семантика, exit 1 при блоке).
   - CI: `security-tests` теперь включает `test_waiver.py`.
   - Тесты: `tests/test_waiver.py` (22); всего 99 passed.
-- [ ] **TASK-0005** — OPA точка `artifact-transition`.
+- [x] **TASK-0005** — OPA точка `artifact-transition`.
+  - `policies/artifact_transition.rego` (Rego v1): таблицы статусов/переходов для
+    `specification`, `threat-model`, `plan`, `task`, `waiver`; deny с reason codes —
+    `UNKNOWN_ARTIFACT_TYPE`, `UNKNOWN_STATUS`, `ILLEGAL_TRANSITION`,
+    `AGENT_MAY_NOT_APPROVE`, `BLOCKING_FINDING` (critical/high), `UNRESOLVED_MEDIUM`
+    (medium без active+unexpired waiver), fail-closed без `now`.
+  - `policies/tests/artifact_transition_test.rego` — 16 тестов (opa test: 23/23 всего).
+  - control-plane `sdlc.policy.artifact_transition`: `build_transition_input`,
+    `evaluate_transition`, `build_transition_decision` (point `artifact-transition`).
+  - CI `security-tests` включает `test_artifact_transition.py`; всего 104 passed.
 - [ ] **TASK-0006** — e2e operator-flow, обновление `docs/sequences.md` и `PROGRESS.md`.
 
 ## 7. Полезные команды
