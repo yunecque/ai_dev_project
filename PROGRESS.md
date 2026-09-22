@@ -4,8 +4,8 @@
 продолжает отсюда, прочитав также `AGENTS.md` и `ARCHITECTURE_BASELINE.md`.
 
 - Обновлено: 2026-09-22
-- Текущий milestone: **M0 — Фундамент** (завершён)
-- Следующий: **M1 — Walking skeleton**
+- Текущий milestone: **M1 — Walking skeleton** (начат)
+- Предыдущий: **M0 — Фундамент** (завершён)
 - Remote: https://github.com/yunecque/ai_dev_project (main, protected)
 
 ---
@@ -15,7 +15,7 @@
 | Milestone | Статус | Примечание |
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
-| M1 Walking skeleton | не начат | зависит от M0 |
+| M1 Walking skeleton | ~10% | TASK-0001 (policy client) done |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
@@ -103,7 +103,7 @@ sdlc validate ../baseline.json           # OK
 
 ```
 apps/{gateway,domain,worker}/     # пусто — код M1
-control-plane/                    # Python 3.12: src/sdlc (artifacts), tests
+control-plane/                    # Python 3.12: src/sdlc (artifacts, policy), tests
 contracts/schemas/                # 12 JSON Schema
 contracts/{openapi,proto,events}/ # пусто — M1
 policies/                         # пусто — M1
@@ -144,14 +144,21 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
 
 ## 6. Как продолжить (M1)
 
-Порядок M1 (walking skeleton):
-1. `contracts/`: OpenAPI (`requests.yaml`), Protobuf (`domain/v1/domain.proto`), event schema (`request-created.schema.json`).
-2. `control-plane`: runner (ephemeral run, scoped capability token, run_id), `policy` (OPA pre-tool-call, fail-closed), `evidence` (compression layer + recovery handle), `trust` tiers.
-3. `apps/gateway` (Go): REST + OIDC validation + gRPC client.
-4. `apps/domain` (Go): gRPC + Postgres + transactional outbox.
-5. outbox publisher → NATS; `apps/worker` идемпотентный consumer.
-6. Тесты: unit, api_acceptance, authorization, grpc_contract, event_contract, integration, security, negative_pipeline, e2e_smoke.
-7. Реализовать заглушки стадий CI (`contract-tests`, `sast`, `integration-tests`, `security-tests`, `policy-check`, `build-image`).
+Порядок M1 (walking skeleton), feature `FEAT-0001`:
+
+- [x] **TASK-0001** — control-plane `policy`: OPA `pre-tool-call` клиент, fail-closed,
+  `policy-decision` artifact + тесты (`src/sdlc/policy/`, `tests/test_policy.py`).
+- [ ] **TASK-0002** — `contracts/`: OpenAPI (`requests.yaml`), Protobuf (`domain/v1/domain.proto`),
+  event schema (`request-created.schema.json`).
+- [ ] **TASK-0003** — control-plane `runner`: ephemeral run, scoped capability token, `run_id`.
+- [ ] **TASK-0004** — control-plane `evidence`: compression layer + recovery handle; `trust` tiers.
+- [ ] **TASK-0005** — `apps/gateway` (Go): REST + OIDC validation + gRPC client.
+- [ ] **TASK-0006** — `apps/domain` (Go): gRPC + Postgres + transactional outbox.
+- [ ] **TASK-0007** — outbox publisher → NATS; `apps/worker` идемпотентный consumer.
+- [ ] **TASK-0008** — тесты: unit, api_acceptance, authorization, grpc_contract, event_contract,
+  integration, security, negative_pipeline, e2e_smoke.
+- [ ] **TASK-0009** — реализовать заглушки стадий CI (`contract-tests`, `sast`, `integration-tests`,
+  `security-tests`, `policy-check`, `build-image`).
 
 ## 7. Полезные команды
 
