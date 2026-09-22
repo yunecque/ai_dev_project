@@ -135,6 +135,7 @@ def test_openapi_status_enum_matches_lifecycle_event() -> None:
     patch = _openapi()["paths"]["/requests/{id}/status"]["patch"]
     body = patch["requestBody"]["content"]["application/json"]["schema"]
     assert _ref_name(body["$ref"]) == "UpdateRequestStatus"
+    assert "403" in patch["responses"], "status update must document the operator-only 403"
 
 
 def test_openapi_schemas_match_event_contract() -> None:
@@ -160,3 +161,6 @@ def test_proto_declares_domain_service_and_messages() -> None:
     assert "rpc ListRequests(ListRequestsRequest) returns (ListRequestsResponse)" in text
     assert "message RequestCreated" in text
     assert "message RequestStatusChanged" in text
+    # Verified identity context (subject + role) is forwarded on every operator call.
+    assert "actor_subject" in text
+    assert "actor_role" in text

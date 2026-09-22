@@ -9,13 +9,14 @@ import (
 
 type mapVerifier struct {
 	byToken map[string]string
+	roles   []string
 }
 
-func (m mapVerifier) Verify(_ context.Context, rawToken string) (string, error) {
+func (m mapVerifier) Verify(_ context.Context, rawToken string) (identity, error) {
 	if subject, ok := m.byToken[rawToken]; ok {
-		return subject, nil
+		return identity{Subject: subject, Roles: m.roles}, nil
 	}
-	return "", errors.New("unknown token")
+	return identity{}, errors.New("unknown token")
 }
 
 func TestAuthorizationRejectsNonBearerScheme(t *testing.T) {

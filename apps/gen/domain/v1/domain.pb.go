@@ -132,7 +132,9 @@ type UpdateRequestStatusRequest struct {
 	// Target lifecycle status; the domain enforces allowed transitions.
 	NewStatus string `protobuf:"bytes,2,opt,name=new_status,json=newStatus,proto3" json:"new_status,omitempty"`
 	// Verified identity context forwarded by the gateway (subject from OIDC token).
-	ActorSubject  string `protobuf:"bytes,3,opt,name=actor_subject,json=actorSubject,proto3" json:"actor_subject,omitempty"`
+	ActorSubject string `protobuf:"bytes,3,opt,name=actor_subject,json=actorSubject,proto3" json:"actor_subject,omitempty"`
+	// Verified role of the actor ("operator" or "user"); status changes require operator.
+	ActorRole     string `protobuf:"bytes,4,opt,name=actor_role,json=actorRole,proto3" json:"actor_role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -188,6 +190,13 @@ func (x *UpdateRequestStatusRequest) GetActorSubject() string {
 	return ""
 }
 
+func (x *UpdateRequestStatusRequest) GetActorRole() string {
+	if x != nil {
+		return x.ActorRole
+	}
+	return ""
+}
+
 type UpdateRequestStatusResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Request       *Request               `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`
@@ -233,8 +242,11 @@ func (x *UpdateRequestStatusResponse) GetRequest() *Request {
 }
 
 type GetRequestRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	RequestId string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// Verified identity context; a non-operator may only read its own requests.
+	ActorSubject  string `protobuf:"bytes,2,opt,name=actor_subject,json=actorSubject,proto3" json:"actor_subject,omitempty"`
+	ActorRole     string `protobuf:"bytes,3,opt,name=actor_role,json=actorRole,proto3" json:"actor_role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -272,6 +284,20 @@ func (*GetRequestRequest) Descriptor() ([]byte, []int) {
 func (x *GetRequestRequest) GetRequestId() string {
 	if x != nil {
 		return x.RequestId
+	}
+	return ""
+}
+
+func (x *GetRequestRequest) GetActorSubject() string {
+	if x != nil {
+		return x.ActorSubject
+	}
+	return ""
+}
+
+func (x *GetRequestRequest) GetActorRole() string {
+	if x != nil {
+		return x.ActorRole
 	}
 	return ""
 }
@@ -324,10 +350,13 @@ type ListRequestsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional lifecycle status filter; empty means no filter.
 	Status string `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	// Optional owning subject filter; empty means no filter.
+	// Optional owning subject filter; ignored for non-operators (scoped to the actor).
 	Subject string `protobuf:"bytes,2,opt,name=subject,proto3" json:"subject,omitempty"`
 	// Optional maximum number of results; the server applies a default and a cap.
-	Limit         int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	Limit int32 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Verified identity context; a non-operator only sees its own requests.
+	ActorSubject  string `protobuf:"bytes,4,opt,name=actor_subject,json=actorSubject,proto3" json:"actor_subject,omitempty"`
+	ActorRole     string `protobuf:"bytes,5,opt,name=actor_role,json=actorRole,proto3" json:"actor_role,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -381,6 +410,20 @@ func (x *ListRequestsRequest) GetLimit() int32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *ListRequestsRequest) GetActorSubject() string {
+	if x != nil {
+		return x.ActorSubject
+	}
+	return ""
+}
+
+func (x *ListRequestsRequest) GetActorRole() string {
+	if x != nil {
+		return x.ActorRole
+	}
+	return ""
 }
 
 type ListRequestsResponse struct {
@@ -711,24 +754,32 @@ const file_domain_v1_domain_proto_rawDesc = "" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x18\n" +
 	"\asubject\x18\x03 \x01(\tR\asubject\"E\n" +
 	"\x15CreateRequestResponse\x12,\n" +
-	"\arequest\x18\x01 \x01(\v2\x12.domain.v1.RequestR\arequest\"\x7f\n" +
+	"\arequest\x18\x01 \x01(\v2\x12.domain.v1.RequestR\arequest\"\x9e\x01\n" +
 	"\x1aUpdateRequestStatusRequest\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1d\n" +
 	"\n" +
 	"new_status\x18\x02 \x01(\tR\tnewStatus\x12#\n" +
-	"\ractor_subject\x18\x03 \x01(\tR\factorSubject\"K\n" +
+	"\ractor_subject\x18\x03 \x01(\tR\factorSubject\x12\x1d\n" +
+	"\n" +
+	"actor_role\x18\x04 \x01(\tR\tactorRole\"K\n" +
 	"\x1bUpdateRequestStatusResponse\x12,\n" +
-	"\arequest\x18\x01 \x01(\v2\x12.domain.v1.RequestR\arequest\"2\n" +
+	"\arequest\x18\x01 \x01(\v2\x12.domain.v1.RequestR\arequest\"v\n" +
 	"\x11GetRequestRequest\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\"B\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12#\n" +
+	"\ractor_subject\x18\x02 \x01(\tR\factorSubject\x12\x1d\n" +
+	"\n" +
+	"actor_role\x18\x03 \x01(\tR\tactorRole\"B\n" +
 	"\x12GetRequestResponse\x12,\n" +
-	"\arequest\x18\x01 \x01(\v2\x12.domain.v1.RequestR\arequest\"]\n" +
+	"\arequest\x18\x01 \x01(\v2\x12.domain.v1.RequestR\arequest\"\xa1\x01\n" +
 	"\x13ListRequestsRequest\x12\x16\n" +
 	"\x06status\x18\x01 \x01(\tR\x06status\x12\x18\n" +
 	"\asubject\x18\x02 \x01(\tR\asubject\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\x05R\x05limit\"F\n" +
+	"\x05limit\x18\x03 \x01(\x05R\x05limit\x12#\n" +
+	"\ractor_subject\x18\x04 \x01(\tR\factorSubject\x12\x1d\n" +
+	"\n" +
+	"actor_role\x18\x05 \x01(\tR\tactorRole\"F\n" +
 	"\x14ListRequestsResponse\x12.\n" +
 	"\brequests\x18\x01 \x03(\v2\x12.domain.v1.RequestR\brequests\"f\n" +
 	"\aRequest\x12\x0e\n" +

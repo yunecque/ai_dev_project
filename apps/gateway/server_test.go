@@ -20,11 +20,15 @@ import (
 
 type fakeVerifier struct {
 	subject string
+	roles   []string
 	err     error
 }
 
-func (f fakeVerifier) Verify(context.Context, string) (string, error) {
-	return f.subject, f.err
+func (f fakeVerifier) Verify(context.Context, string) (identity, error) {
+	if f.err != nil {
+		return identity{}, f.err
+	}
+	return identity{Subject: f.subject, Roles: f.roles}, nil
 }
 
 type fakeDomain struct {
@@ -32,6 +36,7 @@ type fakeDomain struct {
 	err          error
 	gotSubject   string
 	gotActor     string
+	gotActorRole string
 	gotNewStatus string
 	requests     []*domainv1.Request
 }
@@ -53,6 +58,7 @@ func (f *fakeDomain) CreateRequest(_ context.Context, in *domainv1.CreateRequest
 
 func (f *fakeDomain) UpdateRequestStatus(_ context.Context, in *domainv1.UpdateRequestStatusRequest) (*domainv1.UpdateRequestStatusResponse, error) {
 	f.gotActor = in.GetActorSubject()
+	f.gotActorRole = in.GetActorRole()
 	f.gotNewStatus = in.GetNewStatus()
 	if f.err != nil {
 		return nil, f.err
@@ -68,6 +74,8 @@ func (f *fakeDomain) UpdateRequestStatus(_ context.Context, in *domainv1.UpdateR
 }
 
 func (f *fakeDomain) GetRequest(_ context.Context, in *domainv1.GetRequestRequest) (*domainv1.GetRequestResponse, error) {
+	f.gotActor = in.GetActorSubject()
+	f.gotActorRole = in.GetActorRole()
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -81,7 +89,9 @@ func (f *fakeDomain) GetRequest(_ context.Context, in *domainv1.GetRequestReques
 	}, nil
 }
 
-func (f *fakeDomain) ListRequests(_ context.Context, _ *domainv1.ListRequestsRequest) (*domainv1.ListRequestsResponse, error) {
+func (f *fakeDomain) ListRequests(_ context.Context, in *domainv1.ListRequestsRequest) (*domainv1.ListRequestsResponse, error) {
+	f.gotActor = in.GetActorSubject()
+	f.gotActorRole = in.GetActorRole()
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -309,13 +319,16 @@ func TestGetRequestNotFoundIs404(t *testing.T) {
 
 func TestUpdateStatusSucceedsAndForwardsActor(t *testing.T) {
 	domain := &fakeDomain{}
-	ts, _ := newTestServer(t, fakeVerifier{subject: "operator-9"}, domain)
+	ts, _ := newTestServer(t, fakeVerifier{subject: "operator-9", roles: []string{roleOperator}}, domain)
 	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "good", `{"status":"triaged"}`)
 	if response.StatusCode != http.StatusOK {
 		t.Fatalf("status = %d, want 200", response.StatusCode)
 	}
 	if domain.gotActor != "operator-9" {
 		t.Fatalf("actor forwarded = %q, want operator-9", domain.gotActor)
+	}
+	if domain.gotActorRole != roleOperator {
+		t.Fatalf("actor role forwarded = %q, want operator", domain.gotActorRole)
 	}
 	if domain.gotNewStatus != "triaged" {
 		t.Fatalf("new status forwarded = %q, want triaged", domain.gotNewStatus)
@@ -329,6 +342,42 @@ func TestUpdateStatusSucceedsAndForwardsActor(t *testing.T) {
 	}
 }
 
+func TestUpdateStatusNonOperatorIsForbidden(t *testing.T) {
+	domain := &fakeDomain{}
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, domain)
+	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "good", `{"status":"triaged"}`)
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", response.StatusCode)
+	}
+	if domain.gotNewStatus != "" {
+		t.Fatal("domain must not be called for a forbidden actor")
+	}
+}
+
+func TestGetRequestForwardsUserRole(t *testing.T) {
+	domain := &fakeDomain{}
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, domain)
+	response := doRequest(t, ts, http.MethodGet, "/requests/r-1", "good", "")
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.StatusCode)
+	}
+	if domain.gotActor != "user-1" || domain.gotActorRole != roleUser {
+		t.Fatalf("actor = %q role = %q", domain.gotActor, domain.gotActorRole)
+	}
+}
+
+func TestListRequestsForwardsUserRole(t *testing.T) {
+	domain := &fakeDomain{}
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, domain)
+	response := doRequest(t, ts, http.MethodGet, "/requests", "good", "")
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", response.StatusCode)
+	}
+	if domain.gotActorRole != roleUser {
+		t.Fatalf("role = %q, want user", domain.gotActorRole)
+	}
+}
+
 func TestUpdateStatusRequiresAuth(t *testing.T) {
 	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, &fakeDomain{})
 	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "", `{"status":"triaged"}`)
@@ -338,7 +387,7 @@ func TestUpdateStatusRequiresAuth(t *testing.T) {
 }
 
 func TestUpdateStatusMissingStatusIs400(t *testing.T) {
-	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, &fakeDomain{})
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1", roles: []string{roleOperator}}, &fakeDomain{})
 	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "good", `{}`)
 	if response.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", response.StatusCode)
@@ -346,7 +395,7 @@ func TestUpdateStatusMissingStatusIs400(t *testing.T) {
 }
 
 func TestUpdateStatusRejectsUnknownField(t *testing.T) {
-	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, &fakeDomain{})
+	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1", roles: []string{roleOperator}}, &fakeDomain{})
 	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "good", `{"status":"triaged","x":1}`)
 	if response.StatusCode != http.StatusBadRequest {
 		t.Fatalf("status = %d, want 400", response.StatusCode)
@@ -355,7 +404,7 @@ func TestUpdateStatusRejectsUnknownField(t *testing.T) {
 
 func TestUpdateStatusIllegalTransitionIs409(t *testing.T) {
 	domain := &fakeDomain{err: status.Error(codes.FailedPrecondition, "illegal transition")}
-	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, domain)
+	ts, _ := newTestServer(t, fakeVerifier{subject: "operator-1", roles: []string{roleOperator}}, domain)
 	response := doRequest(t, ts, http.MethodPatch, "/requests/r-1/status", "good", `{"status":"resolved"}`)
 	if response.StatusCode != http.StatusConflict {
 		t.Fatalf("status = %d, want 409", response.StatusCode)
@@ -364,7 +413,7 @@ func TestUpdateStatusIllegalTransitionIs409(t *testing.T) {
 
 func TestUpdateStatusUnknownRequestIs404(t *testing.T) {
 	domain := &fakeDomain{err: status.Error(codes.NotFound, "nope")}
-	ts, _ := newTestServer(t, fakeVerifier{subject: "user-1"}, domain)
+	ts, _ := newTestServer(t, fakeVerifier{subject: "operator-1", roles: []string{roleOperator}}, domain)
 	response := doRequest(t, ts, http.MethodPatch, "/requests/missing/status", "good", `{"status":"triaged"}`)
 	if response.StatusCode != http.StatusNotFound {
 		t.Fatalf("status = %d, want 404", response.StatusCode)
