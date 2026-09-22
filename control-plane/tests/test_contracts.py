@@ -1,8 +1,8 @@
-"""Contract tests for the request-creation golden path (M1, TASK-0002).
+"""Contract tests for the request golden path (M1 TASK-0002, M2 TASK-0001).
 
-Covers the three runtime contracts: OpenAPI (REST), Protobuf (gRPC), and the
-RequestCreated domain event schema. The event schema and its golden example are
-validated independently of the workflow-artifact registry.
+Covers the runtime contracts: OpenAPI (REST), Protobuf (gRPC), and the domain
+event schemas (RequestCreated, RequestStatusChanged). Event schemas and their
+golden examples are validated independently of the workflow-artifact registry.
 """
 
 from __future__ import annotations
@@ -25,12 +25,17 @@ def _load_json(path: Path) -> dict[str, Any]:
     return loaded
 
 
-def _event_schema() -> dict[str, Any]:
-    return _load_json(CONTRACTS / "events" / "request-created.schema.json")
+def _event_schema(name: str = "request-created") -> dict[str, Any]:
+    return _load_json(CONTRACTS / "events" / f"{name}.schema.json")
 
 
-def _event_example() -> dict[str, Any]:
-    return _load_json(CONTRACTS / "events" / "examples" / "request-created.json")
+def _event_example(name: str = "request-created") -> dict[str, Any]:
+    return _load_json(CONTRACTS / "events" / "examples" / f"{name}.json")
+
+
+def _validation_errors(schema: dict[str, Any], instance: dict[str, Any]) -> list[Any]:
+    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    return list(validator.iter_errors(instance))
 
 
 def _openapi() -> dict[str, Any]:
@@ -60,6 +65,45 @@ def test_event_example_rejects_unknown_status() -> None:
     assert list(validator.iter_errors(example)), "unknown status must be rejected"
 
 
+def test_status_changed_schema_is_valid_draft_2020_12() -> None:
+    Draft202012Validator.check_schema(_event_schema("request-status-changed"))
+
+
+def test_status_changed_example_validates() -> None:
+    assert (
+        _validation_errors(
+            _event_schema("request-status-changed"), _event_example("request-status-changed")
+        )
+        == []
+    )
+
+
+def test_status_changed_rejects_unknown_status() -> None:
+    example = _event_example("request-status-changed")
+    example["request"]["status"] = "archived"
+    assert _validation_errors(_event_schema("request-status-changed"), example)
+
+
+def test_status_changed_rejects_unknown_previous_status() -> None:
+    example = _event_example("request-status-changed")
+    example["request"]["previous_status"] = "unknown"
+    assert _validation_errors(_event_schema("request-status-changed"), example)
+
+
+def test_status_changed_requires_transition_fields() -> None:
+    schema = _event_schema("request-status-changed")
+    assert set(schema["properties"]["request"]["required"]) == {
+        "id",
+        "status",
+        "previous_status",
+        "updated_at",
+    }
+    lifecycle = set(
+        _event_schema("request-status-changed")["properties"]["request"]["properties"]["status"]["enum"]
+    )
+    assert {"created", "triaged", "in_progress", "resolved", "closed", "cancelled"} <= lifecycle
+
+
 def test_openapi_is_3_1_and_exposes_create_request() -> None:
     spec = _openapi()
     assert str(spec["openapi"]).startswith("3.1")
@@ -86,4 +130,9 @@ def test_proto_declares_domain_service_and_messages() -> None:
     assert "package domain.v1;" in text
     assert "service DomainService" in text
     assert "rpc CreateRequest(CreateRequestRequest) returns (CreateRequestResponse)" in text
+    assert (
+        "rpc UpdateRequestStatus(UpdateRequestStatusRequest) returns (UpdateRequestStatusResponse)"
+        in text
+    )
     assert "message RequestCreated" in text
+    assert "message RequestStatusChanged" in text

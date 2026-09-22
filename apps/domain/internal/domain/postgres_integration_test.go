@@ -4,6 +4,7 @@ package domain
 
 import (
 	"context"
+	"errors"
 	"os"
 	"strings"
 	"testing"
@@ -75,6 +76,75 @@ func TestPostgresStorePersistsRequestAndOutboxAtomically(t *testing.T) {
 	}
 	if requests, outbox := countRows(t, ctx, pool); requests != 1 || outbox != 1 {
 		t.Fatalf("after failed tx requests=%d outbox=%d, want 1/1 (no partial write)", requests, outbox)
+	}
+}
+
+func TestPostgresStoreUpdatesStatusAndOutboxAtomically(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL not set")
+	}
+	ctx := context.Background()
+
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("pool: %v", err)
+	}
+	defer pool.Close()
+	applyMigrations(t, ctx, pool)
+	if _, err := pool.Exec(ctx, "TRUNCATE requests, outbox"); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+
+	store, err := NewPostgresStore(ctx, dsn)
+	if err != nil {
+		t.Fatalf("store: %v", err)
+	}
+	defer store.Close()
+
+	request := Request{ID: requestID, Title: "t", Subject: "u", Status: statusCreated, CreatedAt: createdAt}
+	created := Event{EventID: eventID1, EventType: eventTypeRequestCreated, OccurredAt: createdAt, Request: request}
+	if err := store.CreateRequestWithEvent(ctx, request, created); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	updated := request
+	updated.Status = statusTriaged
+	change := Event{
+		EventID:        eventID2,
+		EventType:      eventTypeRequestStatusChanged,
+		OccurredAt:     createdAt,
+		Request:        updated,
+		PreviousStatus: statusCreated,
+	}
+	if err := store.UpdateRequestStatusWithEvent(ctx, updated, change); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+
+	if requests, outbox := countRows(t, ctx, pool); requests != 1 || outbox != 2 {
+		t.Fatalf("requests=%d outbox=%d, want 1/2", requests, outbox)
+	}
+
+	loaded, err := store.GetRequest(ctx, requestID)
+	if err != nil {
+		t.Fatalf("get: %v", err)
+	}
+	if loaded.Status != statusTriaged {
+		t.Fatalf("status = %q, want triaged", loaded.Status)
+	}
+	if loaded.CreatedAt != createdAt {
+		t.Fatalf("created_at = %q, want %q", loaded.CreatedAt, createdAt)
+	}
+
+	// Unknown request id must not append an outbox row.
+	unknown := request
+	unknown.ID = "99999999-9999-9999-9999-999999999999"
+	orphan := Event{EventID: eventID2, EventType: eventTypeRequestStatusChanged, OccurredAt: createdAt, Request: unknown}
+	if err := store.UpdateRequestStatusWithEvent(ctx, unknown, orphan); !errors.Is(err, ErrRequestNotFound) {
+		t.Fatalf("error = %v, want ErrRequestNotFound", err)
+	}
+	if requests, outbox := countRows(t, ctx, pool); requests != 1 || outbox != 2 {
+		t.Fatalf("after failed update requests=%d outbox=%d, want 1/2", requests, outbox)
 	}
 }
 

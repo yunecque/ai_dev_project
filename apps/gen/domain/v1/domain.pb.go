@@ -126,6 +126,112 @@ func (x *CreateRequestResponse) GetRequest() *Request {
 	return nil
 }
 
+type UpdateRequestStatusRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	RequestId string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// Target lifecycle status; the domain enforces allowed transitions.
+	NewStatus string `protobuf:"bytes,2,opt,name=new_status,json=newStatus,proto3" json:"new_status,omitempty"`
+	// Verified identity context forwarded by the gateway (subject from OIDC token).
+	ActorSubject  string `protobuf:"bytes,3,opt,name=actor_subject,json=actorSubject,proto3" json:"actor_subject,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateRequestStatusRequest) Reset() {
+	*x = UpdateRequestStatusRequest{}
+	mi := &file_domain_v1_domain_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateRequestStatusRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateRequestStatusRequest) ProtoMessage() {}
+
+func (x *UpdateRequestStatusRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_domain_v1_domain_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateRequestStatusRequest.ProtoReflect.Descriptor instead.
+func (*UpdateRequestStatusRequest) Descriptor() ([]byte, []int) {
+	return file_domain_v1_domain_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *UpdateRequestStatusRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *UpdateRequestStatusRequest) GetNewStatus() string {
+	if x != nil {
+		return x.NewStatus
+	}
+	return ""
+}
+
+func (x *UpdateRequestStatusRequest) GetActorSubject() string {
+	if x != nil {
+		return x.ActorSubject
+	}
+	return ""
+}
+
+type UpdateRequestStatusResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Request       *Request               `protobuf:"bytes,1,opt,name=request,proto3" json:"request,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateRequestStatusResponse) Reset() {
+	*x = UpdateRequestStatusResponse{}
+	mi := &file_domain_v1_domain_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateRequestStatusResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateRequestStatusResponse) ProtoMessage() {}
+
+func (x *UpdateRequestStatusResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_domain_v1_domain_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateRequestStatusResponse.ProtoReflect.Descriptor instead.
+func (*UpdateRequestStatusResponse) Descriptor() ([]byte, []int) {
+	return file_domain_v1_domain_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *UpdateRequestStatusResponse) GetRequest() *Request {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
 type Request struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -138,7 +244,7 @@ type Request struct {
 
 func (x *Request) Reset() {
 	*x = Request{}
-	mi := &file_domain_v1_domain_proto_msgTypes[2]
+	mi := &file_domain_v1_domain_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -150,7 +256,7 @@ func (x *Request) String() string {
 func (*Request) ProtoMessage() {}
 
 func (x *Request) ProtoReflect() protoreflect.Message {
-	mi := &file_domain_v1_domain_proto_msgTypes[2]
+	mi := &file_domain_v1_domain_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -163,7 +269,7 @@ func (x *Request) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Request.ProtoReflect.Descriptor instead.
 func (*Request) Descriptor() ([]byte, []int) {
-	return file_domain_v1_domain_proto_rawDescGZIP(), []int{2}
+	return file_domain_v1_domain_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Request) GetId() string {
@@ -207,7 +313,7 @@ type RequestCreated struct {
 
 func (x *RequestCreated) Reset() {
 	*x = RequestCreated{}
-	mi := &file_domain_v1_domain_proto_msgTypes[3]
+	mi := &file_domain_v1_domain_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -219,7 +325,7 @@ func (x *RequestCreated) String() string {
 func (*RequestCreated) ProtoMessage() {}
 
 func (x *RequestCreated) ProtoReflect() protoreflect.Message {
-	mi := &file_domain_v1_domain_proto_msgTypes[3]
+	mi := &file_domain_v1_domain_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -232,7 +338,7 @@ func (x *RequestCreated) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestCreated.ProtoReflect.Descriptor instead.
 func (*RequestCreated) Descriptor() ([]byte, []int) {
-	return file_domain_v1_domain_proto_rawDescGZIP(), []int{3}
+	return file_domain_v1_domain_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RequestCreated) GetEventId() string {
@@ -263,6 +369,143 @@ func (x *RequestCreated) GetRequest() *Request {
 	return nil
 }
 
+// Domain event emitted when a request changes lifecycle status.
+type RequestStatusChanged struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	EventType     string                 `protobuf:"bytes,2,opt,name=event_type,json=eventType,proto3" json:"event_type,omitempty"`
+	OccurredAt    string                 `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	Request       *StatusChange          `protobuf:"bytes,4,opt,name=request,proto3" json:"request,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestStatusChanged) Reset() {
+	*x = RequestStatusChanged{}
+	mi := &file_domain_v1_domain_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestStatusChanged) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestStatusChanged) ProtoMessage() {}
+
+func (x *RequestStatusChanged) ProtoReflect() protoreflect.Message {
+	mi := &file_domain_v1_domain_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestStatusChanged.ProtoReflect.Descriptor instead.
+func (*RequestStatusChanged) Descriptor() ([]byte, []int) {
+	return file_domain_v1_domain_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RequestStatusChanged) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *RequestStatusChanged) GetEventType() string {
+	if x != nil {
+		return x.EventType
+	}
+	return ""
+}
+
+func (x *RequestStatusChanged) GetOccurredAt() string {
+	if x != nil {
+		return x.OccurredAt
+	}
+	return ""
+}
+
+func (x *RequestStatusChanged) GetRequest() *StatusChange {
+	if x != nil {
+		return x.Request
+	}
+	return nil
+}
+
+type StatusChange struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Status         string                 `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	PreviousStatus string                 `protobuf:"bytes,3,opt,name=previous_status,json=previousStatus,proto3" json:"previous_status,omitempty"`
+	UpdatedAt      string                 `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *StatusChange) Reset() {
+	*x = StatusChange{}
+	mi := &file_domain_v1_domain_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StatusChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StatusChange) ProtoMessage() {}
+
+func (x *StatusChange) ProtoReflect() protoreflect.Message {
+	mi := &file_domain_v1_domain_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StatusChange.ProtoReflect.Descriptor instead.
+func (*StatusChange) Descriptor() ([]byte, []int) {
+	return file_domain_v1_domain_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *StatusChange) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *StatusChange) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *StatusChange) GetPreviousStatus() string {
+	if x != nil {
+		return x.PreviousStatus
+	}
+	return ""
+}
+
+func (x *StatusChange) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
 var File_domain_v1_domain_proto protoreflect.FileDescriptor
 
 const file_domain_v1_domain_proto_rawDesc = "" +
@@ -273,6 +516,14 @@ const file_domain_v1_domain_proto_rawDesc = "" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x18\n" +
 	"\asubject\x18\x03 \x01(\tR\asubject\"E\n" +
 	"\x15CreateRequestResponse\x12,\n" +
+	"\arequest\x18\x01 \x01(\v2\x12.domain.v1.RequestR\arequest\"\x7f\n" +
+	"\x1aUpdateRequestStatusRequest\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1d\n" +
+	"\n" +
+	"new_status\x18\x02 \x01(\tR\tnewStatus\x12#\n" +
+	"\ractor_subject\x18\x03 \x01(\tR\factorSubject\"K\n" +
+	"\x1bUpdateRequestStatusResponse\x12,\n" +
 	"\arequest\x18\x01 \x01(\v2\x12.domain.v1.RequestR\arequest\"f\n" +
 	"\aRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
@@ -286,9 +537,23 @@ const file_domain_v1_domain_proto_rawDesc = "" +
 	"event_type\x18\x02 \x01(\tR\teventType\x12\x1f\n" +
 	"\voccurred_at\x18\x03 \x01(\tR\n" +
 	"occurredAt\x12,\n" +
-	"\arequest\x18\x04 \x01(\v2\x12.domain.v1.RequestR\arequest2c\n" +
+	"\arequest\x18\x04 \x01(\v2\x12.domain.v1.RequestR\arequest\"\xa4\x01\n" +
+	"\x14RequestStatusChanged\x12\x19\n" +
+	"\bevent_id\x18\x01 \x01(\tR\aeventId\x12\x1d\n" +
+	"\n" +
+	"event_type\x18\x02 \x01(\tR\teventType\x12\x1f\n" +
+	"\voccurred_at\x18\x03 \x01(\tR\n" +
+	"occurredAt\x121\n" +
+	"\arequest\x18\x04 \x01(\v2\x17.domain.v1.StatusChangeR\arequest\"~\n" +
+	"\fStatusChange\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\x12'\n" +
+	"\x0fprevious_status\x18\x03 \x01(\tR\x0epreviousStatus\x12\x1d\n" +
+	"\n" +
+	"updated_at\x18\x04 \x01(\tR\tupdatedAt2\xc9\x01\n" +
 	"\rDomainService\x12R\n" +
-	"\rCreateRequest\x12\x1f.domain.v1.CreateRequestRequest\x1a .domain.v1.CreateRequestResponseB\xa1\x01\n" +
+	"\rCreateRequest\x12\x1f.domain.v1.CreateRequestRequest\x1a .domain.v1.CreateRequestResponse\x12d\n" +
+	"\x13UpdateRequestStatus\x12%.domain.v1.UpdateRequestStatusRequest\x1a&.domain.v1.UpdateRequestStatusResponseB\xa1\x01\n" +
 	"\rcom.domain.v1B\vDomainProtoP\x01Z>github.com/yunecque/ai_dev_project/apps/gen/domain/v1;domainv1\xa2\x02\x03DXX\xaa\x02\tDomain.V1\xca\x02\tDomain\\V1\xe2\x02\x15Domain\\V1\\GPBMetadata\xea\x02\n" +
 	"Domain::V1b\x06proto3"
 
@@ -304,23 +569,31 @@ func file_domain_v1_domain_proto_rawDescGZIP() []byte {
 	return file_domain_v1_domain_proto_rawDescData
 }
 
-var file_domain_v1_domain_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_domain_v1_domain_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_domain_v1_domain_proto_goTypes = []any{
-	(*CreateRequestRequest)(nil),  // 0: domain.v1.CreateRequestRequest
-	(*CreateRequestResponse)(nil), // 1: domain.v1.CreateRequestResponse
-	(*Request)(nil),               // 2: domain.v1.Request
-	(*RequestCreated)(nil),        // 3: domain.v1.RequestCreated
+	(*CreateRequestRequest)(nil),        // 0: domain.v1.CreateRequestRequest
+	(*CreateRequestResponse)(nil),       // 1: domain.v1.CreateRequestResponse
+	(*UpdateRequestStatusRequest)(nil),  // 2: domain.v1.UpdateRequestStatusRequest
+	(*UpdateRequestStatusResponse)(nil), // 3: domain.v1.UpdateRequestStatusResponse
+	(*Request)(nil),                     // 4: domain.v1.Request
+	(*RequestCreated)(nil),              // 5: domain.v1.RequestCreated
+	(*RequestStatusChanged)(nil),        // 6: domain.v1.RequestStatusChanged
+	(*StatusChange)(nil),                // 7: domain.v1.StatusChange
 }
 var file_domain_v1_domain_proto_depIdxs = []int32{
-	2, // 0: domain.v1.CreateRequestResponse.request:type_name -> domain.v1.Request
-	2, // 1: domain.v1.RequestCreated.request:type_name -> domain.v1.Request
-	0, // 2: domain.v1.DomainService.CreateRequest:input_type -> domain.v1.CreateRequestRequest
-	1, // 3: domain.v1.DomainService.CreateRequest:output_type -> domain.v1.CreateRequestResponse
-	3, // [3:4] is the sub-list for method output_type
-	2, // [2:3] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	4, // 0: domain.v1.CreateRequestResponse.request:type_name -> domain.v1.Request
+	4, // 1: domain.v1.UpdateRequestStatusResponse.request:type_name -> domain.v1.Request
+	4, // 2: domain.v1.RequestCreated.request:type_name -> domain.v1.Request
+	7, // 3: domain.v1.RequestStatusChanged.request:type_name -> domain.v1.StatusChange
+	0, // 4: domain.v1.DomainService.CreateRequest:input_type -> domain.v1.CreateRequestRequest
+	2, // 5: domain.v1.DomainService.UpdateRequestStatus:input_type -> domain.v1.UpdateRequestStatusRequest
+	1, // 6: domain.v1.DomainService.CreateRequest:output_type -> domain.v1.CreateRequestResponse
+	3, // 7: domain.v1.DomainService.UpdateRequestStatus:output_type -> domain.v1.UpdateRequestStatusResponse
+	6, // [6:8] is the sub-list for method output_type
+	4, // [4:6] is the sub-list for method input_type
+	4, // [4:4] is the sub-list for extension type_name
+	4, // [4:4] is the sub-list for extension extendee
+	0, // [0:4] is the sub-list for field type_name
 }
 
 func init() { file_domain_v1_domain_proto_init() }
@@ -334,7 +607,7 @@ func file_domain_v1_domain_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_domain_v1_domain_proto_rawDesc), len(file_domain_v1_domain_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -4,8 +4,8 @@
 продолжает отсюда, прочитав также `AGENTS.md` и `ARCHITECTURE_BASELINE.md`.
 
 - Обновлено: 2026-09-22
-- Текущий milestone: **M1 — Walking skeleton** (завершён)
-- Следующий: **M2 — Домен и lifecycle**
+- Текущий milestone: **M2 — Домен и lifecycle** (в работе)
+- Предыдущий: **M1 — Walking skeleton** (завершён)
 - Remote: https://github.com/yunecque/ai_dev_project (main, protected)
 - Наглядные схемы: `docs/sequences.md` (обновляется по мере прогресса)
 
@@ -17,7 +17,7 @@
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
 | M1 Walking skeleton | 100% | TASK-0001…0012 done; walking skeleton собран |
-| M2 Домен и lifecycle | не начат | |
+| M2 Домен и lifecycle | ~15% | TASK-0001 done; feature `FEAT-0002` |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
 | M5 Portfolio | не начат | |
@@ -92,7 +92,7 @@ semgrep=1.177.0  uv=0.12.17
 cd control-plane
 python -m ruff check src tests      # All checks passed
 python -m mypy                      # Success: no issues found (17 files, strict)
-python -m pytest -q                 # 70 passed
+python -m pytest -q                 # 75 passed
 sdlc validate ../specs/examples/*.json   # все OK
 sdlc validate ../baseline.json           # OK
 
@@ -224,6 +224,26 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
     sensitive не попадает в контекст, untrusted/sensitive не инструкции.
   - worker `e2e_smoke_integration_test.go`: golden event из контракта через embedded JetStream
     обрабатывается ровно один раз (смыкает async golden path с domain payload-тестом).
+
+## 8. Как продолжить (M2 — Домен и lifecycle)
+
+Feature `FEAT-0002`: operator workflow, полная authz-матрица, waiver-механика.
+
+- [x] **TASK-0001** — lifecycle-контракт: state machine (`created→triaged→in_progress→resolved→closed`,
+  ветка `cancelled` из `created/triaged/in_progress`), gRPC `UpdateRequestStatus`, событие
+  `request-status-changed` (`contracts/events/`), transition-guard в domain + тесты.
+  - `apps/domain`: `CanTransition`, `Store.UpdateRequestStatusWithEvent`/`GetRequest`,
+    `MemoryStore` + `PostgresStore` (атомарно status + outbox), payload-контракт.
+  - `apps/publisher`: маршрутизация событий по типу (`eventSubjects`), fail-closed на неизвестный
+    тип; JetStream-стрим `REQUESTS` принимает оба subject'а (`requests.created`,
+    `requests.status-changed`).
+  - control-plane `test_contracts.py`: схема/пример статус-события, proto RPC (+5 тестов, 75 всего).
+- [ ] **TASK-0002** — operator workflow API: `GET /requests`, `GET /requests/{id}`,
+  `PATCH /requests/{id}/status` (OpenAPI + gateway).
+- [ ] **TASK-0003** — полная authz-матрица (роли requester/operator/admin).
+- [ ] **TASK-0004** — waiver-механика (валидация, истечение, запрет для агента).
+- [ ] **TASK-0005** — OPA точка `artifact-transition`.
+- [ ] **TASK-0006** — e2e operator-flow, обновление `docs/sequences.md` и `PROGRESS.md`.
 
 ## 7. Полезные команды
 

@@ -19,16 +19,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	DomainService_CreateRequest_FullMethodName = "/domain.v1.DomainService/CreateRequest"
+	DomainService_CreateRequest_FullMethodName       = "/domain.v1.DomainService/CreateRequest"
+	DomainService_UpdateRequestStatus_FullMethodName = "/domain.v1.DomainService/UpdateRequestStatus"
 )
 
 // DomainServiceClient is the client API for DomainService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Internal service contract for the request-creation golden path.
+// Internal service contract for the request golden path.
 type DomainServiceClient interface {
 	CreateRequest(ctx context.Context, in *CreateRequestRequest, opts ...grpc.CallOption) (*CreateRequestResponse, error)
+	// Applies a lifecycle transition to an existing request and emits RequestStatusChanged.
+	UpdateRequestStatus(ctx context.Context, in *UpdateRequestStatusRequest, opts ...grpc.CallOption) (*UpdateRequestStatusResponse, error)
 }
 
 type domainServiceClient struct {
@@ -49,13 +52,25 @@ func (c *domainServiceClient) CreateRequest(ctx context.Context, in *CreateReque
 	return out, nil
 }
 
+func (c *domainServiceClient) UpdateRequestStatus(ctx context.Context, in *UpdateRequestStatusRequest, opts ...grpc.CallOption) (*UpdateRequestStatusResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateRequestStatusResponse)
+	err := c.cc.Invoke(ctx, DomainService_UpdateRequestStatus_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // DomainServiceServer is the server API for DomainService service.
 // All implementations must embed UnimplementedDomainServiceServer
 // for forward compatibility.
 //
-// Internal service contract for the request-creation golden path.
+// Internal service contract for the request golden path.
 type DomainServiceServer interface {
 	CreateRequest(context.Context, *CreateRequestRequest) (*CreateRequestResponse, error)
+	// Applies a lifecycle transition to an existing request and emits RequestStatusChanged.
+	UpdateRequestStatus(context.Context, *UpdateRequestStatusRequest) (*UpdateRequestStatusResponse, error)
 	mustEmbedUnimplementedDomainServiceServer()
 }
 
@@ -68,6 +83,9 @@ type UnimplementedDomainServiceServer struct{}
 
 func (UnimplementedDomainServiceServer) CreateRequest(context.Context, *CreateRequestRequest) (*CreateRequestResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateRequest not implemented")
+}
+func (UnimplementedDomainServiceServer) UpdateRequestStatus(context.Context, *UpdateRequestStatusRequest) (*UpdateRequestStatusResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateRequestStatus not implemented")
 }
 func (UnimplementedDomainServiceServer) mustEmbedUnimplementedDomainServiceServer() {}
 func (UnimplementedDomainServiceServer) testEmbeddedByValue()                       {}
@@ -108,6 +126,24 @@ func _DomainService_CreateRequest_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DomainService_UpdateRequestStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateRequestStatusRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(DomainServiceServer).UpdateRequestStatus(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: DomainService_UpdateRequestStatus_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(DomainServiceServer).UpdateRequestStatus(ctx, req.(*UpdateRequestStatusRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // DomainService_ServiceDesc is the grpc.ServiceDesc for DomainService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -118,6 +154,10 @@ var DomainService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CreateRequest",
 			Handler:    _DomainService_CreateRequest_Handler,
+		},
+		{
+			MethodName: "UpdateRequestStatus",
+			Handler:    _DomainService_UpdateRequestStatus_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

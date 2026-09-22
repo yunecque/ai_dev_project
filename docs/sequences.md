@@ -50,7 +50,46 @@ sequenceDiagram
 
 ---
 
-## 2. Enforcement вокруг агента (untrusted)
+## 2. Lifecycle заявки (M2)
+
+State machine `created → triaged → in_progress → resolved → closed` (+ `cancelled` из первых трёх).
+Изменить статус можно только по разрешённому переходу; изменение статуса и событие пишутся одной
+транзакцией (transactional outbox). REST-часть (`PATCH /requests/{id}/status`) — TASK-0002.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Op as Operator
+    participant G as gateway (Go)
+    participant D as domain (Go)
+    participant P as Postgres
+    participant Pub as publisher (Go)
+    participant N as NATS JetStream
+
+    Op->>G: PATCH /requests/{id}/status (Bearer JWT)   %% TASK-0002
+    G->>D: gRPC UpdateRequestStatus(id, new_status, actor)
+    D->>P: SELECT request
+    D->>D: CanTransition(current → new)
+    alt переход разрешён
+        D->>P: UPDATE requests SET status + INSERT outbox (одна транзакция)
+        D-->>G: Request(status=new)
+        G-->>Op: 200 OK
+    else запрещённый переход / нет заявки
+        D-->>G: FailedPrecondition / NotFound
+        G-->>Op: 409 / 404
+    end
+    Pub->>P: SELECT outbox WHERE published_at IS NULL
+    Pub->>N: publish requests.status-changed (route по типу события)
+```
+
+Реализация: `apps/domain/internal/domain/{service,memory,postgres}.go` (`CanTransition`),
+`apps/publisher/internal/outbox/poller.go` (маршрутизация `eventSubjects`), событие —
+`contracts/events/request-status-changed.schema.json`.
+Тесты: `apps/domain/internal/domain/lifecycle_test.go`, `poller_test.go`, `test_contracts.py`.
+
+---
+
+## 3. Enforcement вокруг агента (untrusted)
 
 Каждый tool-call проходит policy (OPA) и scoped capability; sensitive не попадает в контекст.
 
@@ -88,7 +127,7 @@ sequenceDiagram
 
 ---
 
-## 3. Разработка и CI (как агент меняет репозиторий)
+## 4. Разработка и CI (как агент меняет репозиторий)
 
 ```mermaid
 sequenceDiagram
@@ -114,13 +153,13 @@ sequenceDiagram
 
 ---
 
-## 4. Прогресс по milestone
+## 5. Прогресс по milestone
 
 | Milestone | Статус | Диаграмма |
 |---|---|---|
 | M0 Фундамент | ✅ | — |
-| M1 Walking skeleton | ✅ | §1, §2, §3 |
-| M2 Домен и lifecycle | ⏳ | (добавить при работе) |
+| M1 Walking skeleton | ✅ | §1, §3, §4 |
+| M2 Домен и lifecycle | ⏳ | §2 |
 | M3 Supply chain hardening | — | (container-scan / sbom / sign) |
 | M4 Staging + observability | — | (otel pipeline) |
 | M5 Portfolio | — | (traceability, blocked attacks) |

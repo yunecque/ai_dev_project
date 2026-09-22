@@ -56,7 +56,7 @@ func TestPollerPublishesToJetStream(t *testing.T) {
 		EventType: "request-created",
 		Payload:   []byte(`{"event_id":"e1"}`),
 	}}}
-	poller := NewPoller(store, NewNATSPublisher(jetstream), "requests.created", 0)
+	poller := NewPoller(store, NewNATSPublisher(jetstream), map[string]string{"request-created": "requests.created"}, 0)
 
 	count, err := poller.PublishBatch(context.Background())
 	if err != nil {

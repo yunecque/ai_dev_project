@@ -17,13 +17,17 @@ var fixedNow = time.Date(2026, 9, 22, 12, 0, 0, 0, time.UTC)
 func newTestService(store Store) *Service {
 	service := NewService(store)
 	service.now = func() time.Time { return fixedNow }
-	var counter int
+	ids := []string{
+		"11111111-1111-1111-1111-111111111111",
+		"22222222-2222-2222-2222-222222222222",
+		"33333333-3333-3333-3333-333333333333",
+		"44444444-4444-4444-4444-444444444444",
+	}
+	index := 0
 	service.newID = func() string {
-		counter++
-		if counter == 1 {
-			return "11111111-1111-1111-1111-111111111111"
-		}
-		return "22222222-2222-2222-2222-222222222222"
+		id := ids[index%len(ids)]
+		index++
+		return id
 	}
 	return service
 }

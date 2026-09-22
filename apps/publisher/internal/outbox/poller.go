@@ -26,23 +26,25 @@ type Publisher interface {
 	Publish(ctx context.Context, subject string, data []byte) error
 }
 
-// Poller publishes unpublished outbox records in order.
+// Poller publishes unpublished outbox records in order, routing each event type
+// to its configured NATS subject.
 type Poller struct {
 	store     Store
 	publisher Publisher
-	subject   string
+	routes    map[string]string
 	limit     int
 }
 
-func NewPoller(store Store, publisher Publisher, subject string, limit int) *Poller {
+func NewPoller(store Store, publisher Publisher, routes map[string]string, limit int) *Poller {
 	if limit <= 0 {
 		limit = DefaultBatchSize
 	}
-	return &Poller{store: store, publisher: publisher, subject: subject, limit: limit}
+	return &Poller{store: store, publisher: publisher, routes: routes, limit: limit}
 }
 
 // PublishBatch publishes up to one batch. On the first publish/mark failure it stops and
 // returns the number already published plus the error; already-marked rows are not re-published.
+// An event type without a configured route is treated as fail-closed and stops the batch.
 func (p *Poller) PublishBatch(ctx context.Context) (int, error) {
 	records, err := p.store.FetchUnpublished(ctx, p.limit)
 	if err != nil {
@@ -50,7 +52,11 @@ func (p *Poller) PublishBatch(ctx context.Context) (int, error) {
 	}
 	published := 0
 	for _, record := range records {
-		if err := p.publisher.Publish(ctx, p.subject, record.Payload); err != nil {
+		subject, ok := p.routes[record.EventType]
+		if !ok {
+			return published, fmt.Errorf("route %s: unsupported event type %q", record.EventID, record.EventType)
+		}
+		if err := p.publisher.Publish(ctx, subject, record.Payload); err != nil {
 			return published, fmt.Errorf("publish %s: %w", record.EventID, err)
 		}
 		if err := p.store.MarkPublished(ctx, record.EventID); err != nil {

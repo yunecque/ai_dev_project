@@ -4,9 +4,11 @@ package domain.v1;
 
 option go_package = "github.com/yunecque/ai_dev_project/apps/domain/gen/domain/v1;domainv1";
 
-// Internal service contract for the request-creation golden path.
+// Internal service contract for the request golden path.
 service DomainService {
   rpc CreateRequest(CreateRequestRequest) returns (CreateRequestResponse);
+  // Applies a lifecycle transition to an existing request and emits RequestStatusChanged.
+  rpc UpdateRequestStatus(UpdateRequestStatusRequest) returns (UpdateRequestStatusResponse);
 }
 
 message CreateRequestRequest {
@@ -17,6 +19,18 @@ message CreateRequestRequest {
 }
 
 message CreateRequestResponse {
+  Request request = 1;
+}
+
+message UpdateRequestStatusRequest {
+  string request_id = 1;
+  // Target lifecycle status; the domain enforces allowed transitions.
+  string new_status = 2;
+  // Verified identity context forwarded by the gateway (subject from OIDC token).
+  string actor_subject = 3;
+}
+
+message UpdateRequestStatusResponse {
   Request request = 1;
 }
 
@@ -33,4 +47,19 @@ message RequestCreated {
   string event_type = 2;
   string occurred_at = 3;
   Request request = 4;
+}
+
+// Domain event emitted when a request changes lifecycle status.
+message RequestStatusChanged {
+  string event_id = 1;
+  string event_type = 2;
+  string occurred_at = 3;
+  StatusChange request = 4;
+}
+
+message StatusChange {
+  string id = 1;
+  string status = 2;
+  string previous_status = 3;
+  string updated_at = 4;
 }

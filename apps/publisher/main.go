@@ -12,7 +12,11 @@ import (
 	"github.com/yunecque/ai_dev_project/apps/publisher/internal/outbox"
 )
 
-const subject = "requests.created"
+// eventSubjects maps each domain event type to its NATS subject.
+var eventSubjects = map[string]string{
+	"request-created":        "requests.created",
+	"request-status-changed": "requests.status-changed",
+}
 
 func main() {
 	ctx := context.Background()
@@ -35,9 +39,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("publisher: jetstream: %v", err)
 	}
+	subjects := make([]string, 0, len(eventSubjects))
+	for _, subject := range eventSubjects {
+		subjects = append(subjects, subject)
+	}
 	if _, err := jetstream.AddStream(&nats.StreamConfig{
 		Name:     "REQUESTS",
-		Subjects: []string{subject},
+		Subjects: subjects,
 		Storage:  nats.FileStorage,
 	}); err != nil && !errors.Is(err, nats.ErrStreamNameAlreadyInUse) {
 		log.Fatalf("publisher: stream: %v", err)
@@ -46,13 +54,13 @@ func main() {
 	poller := outbox.NewPoller(
 		outbox.NewPostgresStore(pool),
 		outbox.NewNATSPublisher(jetstream),
-		subject,
+		eventSubjects,
 		outbox.DefaultBatchSize,
 	)
 
 	ticker := time.NewTicker(2 * time.Second)
 	defer ticker.Stop()
-	log.Printf("publisher: polling outbox -> %s", subject)
+	log.Printf("publisher: polling outbox -> %v", subjects)
 	for range ticker.C {
 		published, err := poller.PublishBatch(ctx)
 		if err != nil {
