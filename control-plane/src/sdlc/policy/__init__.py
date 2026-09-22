@@ -20,18 +20,30 @@ from .client import (
     compute_input_digest,
 )
 from .decision import build_policy_decision
+from .pre_deployment import (
+    POINT as PRE_DEPLOYMENT_POINT,
+)
+from .pre_deployment import (
+    build_deployment_decision,
+    build_deployment_input,
+    evaluate_deployment,
+)
 
 __all__ = [
     "ARTIFACT_TRANSITION_POINT",
+    "PRE_DEPLOYMENT_POINT",
     "REASON_ALLOWED",
     "REASON_DENIED",
     "REASON_POLICY_MALFORMED",
     "REASON_POLICY_UNAVAILABLE",
     "PolicyClient",
     "PolicyResult",
+    "build_deployment_decision",
+    "build_deployment_input",
     "build_policy_decision",
     "build_transition_decision",
     "build_transition_input",
     "compute_input_digest",
+    "evaluate_deployment",
     "evaluate_transition",
 ]

@@ -131,11 +131,11 @@ sequenceDiagram
     end
 ```
 
-Реализация: `policies/{pre_tool_call,artifact_transition}.rego`,
+Реализация: `policies/{pre_tool_call,artifact_transition,pre_deployment}.rego`,
 `control-plane/src/sdlc/{policy,runner,evidence,trust,waiver}`.
-Тесты: `control-plane/tests/test_{policy,runner,evidence,negative_pipeline,waiver}.py`,
-`policies/tests/` (opa test). Из четырёх точек ADR-0004 реализованы `pre-tool-call` и
-`artifact-transition`; `pr-ci`/`pre-deployment` — M3/M4.
+Тесты: `control-plane/tests/test_{policy,runner,evidence,negative_pipeline,waiver,artifact_transition,pre_deployment}.py`,
+`policies/tests/` (opa test). Из четырёх точек ADR-0004 реализованы `pre-tool-call`,
+`artifact-transition`, `pre-deployment`; `pr-ci` — остаётся.
 
 ---
 
@@ -172,7 +172,7 @@ sequenceDiagram
 | M0 Фундамент | ✅ | — |
 | M1 Walking skeleton | ✅ | §1, §3, §4 |
 | M2 Домен и lifecycle | ✅ | §2 |
-| M3 Supply chain hardening | — | (container-scan / sbom / sign) |
+| M3 Supply chain hardening | ⏳ | §3 (pre-deployment) |
 | M4 Staging + observability | — | (otel pipeline) |
 | M5 Portfolio | — | (traceability, blocked attacks) |
 
