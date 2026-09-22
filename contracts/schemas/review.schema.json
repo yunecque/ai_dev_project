@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/schemas/review.schema.json",
+  "title": "Independent Review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_type", "id", "created_at", "created_by", "task_id", "subject_digest", "verdict", "findings"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "artifact_type": { "type": "string", "const": "review" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "created_at": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "created_by": { "$ref": "common.schema.json#/$defs/actor" },
+    "run_id": { "$ref": "common.schema.json#/$defs/runId" },
+    "links": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/link" } },
+    "task_id": { "$ref": "common.schema.json#/$defs/id" },
+    "implementer_run_id": { "$ref": "common.schema.json#/$defs/runId" },
+    "subject_digest": { "$ref": "common.schema.json#/$defs/sha256" },
+    "verdict": { "type": "string", "enum": ["approved", "changes_requested"] },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "severity", "summary"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "severity": { "$ref": "common.schema.json#/$defs/severity" },
+          "summary": { "type": "string" },
+          "location": { "type": "string" }
+        }
+      }
+    }
+  }
+}

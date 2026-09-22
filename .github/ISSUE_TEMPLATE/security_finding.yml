@@ -1,0 +1,31 @@
+name: Security finding / incident
+description: Сообщить о security-риске или инциденте
+title: "[SEC] "
+labels: ["security"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Не вставляйте secrets, credentials и PII. Используйте redacted-описания.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options: ["critical", "high", "medium", "low"]
+    validations:
+      required: true
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Scenario
+    validations:
+      required: true
+  - type: input
+    id: control_id
+    attributes:
+      label: Control ID (если известен)
+      placeholder: CTRL-0001
+  - type: textarea
+    id: remediation
+    attributes:
+      label: Предлагаемое remediation / compensating control

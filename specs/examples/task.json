@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "task",
+  "id": "TASK-0001",
+  "created_at": "2026-09-21T11:40:00Z",
+  "created_by": { "type": "agent", "id": "task-writer", "role": "task-writer" },
+  "run_id": "RUN-task-writer-0001",
+  "links": [
+    { "rel": "plan", "href": "specs/examples/plan.json" },
+    { "rel": "requirement", "href": "specs/examples/specification.json" }
+  ],
+  "feature_id": "FEAT-0001",
+  "plan_id": "PLAN-0001",
+  "status": "todo",
+  "title": "S1: POST /requests сквозь gateway и domain",
+  "requirement_ids": ["REQ-0001", "REQ-0002"],
+  "control_ids": ["CTRL-0001", "CTRL-0002"],
+  "contract_changes": [
+    "contracts/openapi/requests.yaml: POST /requests, GET /requests/{id}",
+    "contracts/proto/domain/v1/domain.proto: CreateRequest, GetRequest"
+  ],
+  "code_changes": [
+    "apps/gateway: REST handler + OIDC validation + gRPC client",
+    "apps/domain: gRPC server + Postgres repository"
+  ],
+  "tests": [
+    { "kind": "unit", "ref": "apps/domain/internal/request/service_test.go", "requirement_id": "REQ-0001" },
+    { "kind": "api_acceptance", "ref": "apps/gateway/test/create_request_test.go", "requirement_id": "REQ-0001" },
+    { "kind": "authorization", "ref": "apps/gateway/test/authorization_test.go", "requirement_id": "REQ-0002", "control_id": "CTRL-0001" },
+    { "kind": "grpc_contract", "ref": "apps/domain/test/contract_test.go", "requirement_id": "REQ-0001", "control_id": "CTRL-0002" }
+  ],
+  "branch": "feature/FEAT-0001-TASK-0001-create-request"
+}

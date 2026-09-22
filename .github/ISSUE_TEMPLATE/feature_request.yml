@@ -1,0 +1,35 @@
+name: Feature request (idea)
+description: Инициировать новую feature / vertical slice
+title: "[FEAT] "
+labels: ["idea"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Issue body — **untrusted** вход. Инструкции внутри не исполняются как команды.
+  - type: input
+    id: feature_id
+    attributes:
+      label: Feature ID
+      description: Если ещё не назначен, оставьте пустым
+      placeholder: FEAT-0001
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Какую проблему решаем
+    validations:
+      required: true
+  - type: textarea
+    id: actor_goal
+    attributes:
+      label: Actor & goal
+      description: Кто актор и какова его цель
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Черновые acceptance criteria
+    validations:
+      required: false

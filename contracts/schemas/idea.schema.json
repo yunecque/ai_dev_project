@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/schemas/idea.schema.json",
+  "title": "Idea",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_type", "id", "created_at", "created_by", "title", "problem", "actor_goal", "source"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "artifact_type": { "type": "string", "const": "idea" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "created_at": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "created_by": { "$ref": "common.schema.json#/$defs/actor" },
+    "title": { "type": "string", "minLength": 1 },
+    "problem": { "type": "string", "minLength": 1 },
+    "actor_goal": { "type": "string", "minLength": 1 },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "trust_tier"],
+      "properties": {
+        "kind": { "type": "string", "enum": ["issue", "comment", "document"] },
+        "ref": { "type": "string" },
+        "trust_tier": { "$ref": "common.schema.json#/$defs/trustTier" }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}

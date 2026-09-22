@@ -1,0 +1,49 @@
+# OpenTelemetry Collector for local development.
+# Mandatory redaction of secrets/tokens/PII before export (constitution section 6, ADR-0010).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch: {}
+  transform/redact:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - replace_pattern(attributes["http.request.header.authorization"], ".*", "[REDACTED]")
+          - replace_pattern(attributes["http.request.header.cookie"], ".*", "[REDACTED]")
+    log_statements:
+      - context: log
+        statements:
+          - replace_pattern(body, "(?i)(password|secret|token|api[_-]?key)=\\S+", "$1=[REDACTED]")
+
+exporters:
+  prometheus:
+    endpoint: 0.0.0.0:8889
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [transform/redact, batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [transform/redact, batch]
+      exporters: [loki]

@@ -1,0 +1,45 @@
+{
+  "realm": "sdlc",
+  "enabled": true,
+  "sslRequired": "none",
+  "registrationAllowed": false,
+  "roles": {
+    "realm": [
+      { "name": "user", "description": "Может создавать и читать свои заявки" },
+      { "name": "operator", "description": "Может обрабатывать заявки по workflow" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "gateway",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "gateway-dev-secret",
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "email": "alice@example.test",
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "alice-dev-password", "temporary": false }
+      ],
+      "realmRoles": ["user"]
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "email": "bob@example.test",
+      "emailVerified": true,
+      "credentials": [
+        { "type": "password", "value": "bob-dev-password", "temporary": false }
+      ],
+      "realmRoles": ["user", "operator"]
+    }
+  ]
+}

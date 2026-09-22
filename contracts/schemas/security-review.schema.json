@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/schemas/security-review.schema.json",
+  "title": "Security Review",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_type", "id", "created_at", "created_by", "feature_id", "threat_model_id", "verdict", "risk_dispositions"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "artifact_type": { "type": "string", "const": "security-review" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "created_at": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "created_by": { "$ref": "common.schema.json#/$defs/actor" },
+    "run_id": { "$ref": "common.schema.json#/$defs/runId" },
+    "links": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/link" } },
+    "feature_id": { "$ref": "common.schema.json#/$defs/id" },
+    "threat_model_id": { "$ref": "common.schema.json#/$defs/id" },
+    "verdict": { "type": "string", "enum": ["approved", "changes_requested", "rejected"] },
+    "risk_dispositions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["risk_id", "severity", "disposition"],
+        "properties": {
+          "risk_id": { "$ref": "common.schema.json#/$defs/id" },
+          "severity": { "$ref": "common.schema.json#/$defs/severity" },
+          "disposition": { "type": "string", "enum": ["mitigated", "waived_medium", "accepted_low", "open_blocking"] },
+          "waiver_id": { "$ref": "common.schema.json#/$defs/id" },
+          "verification_evidence": { "type": "string" }
+        }
+      }
+    }
+  }
+}

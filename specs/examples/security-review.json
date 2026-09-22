@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "security-review",
+  "id": "SECREV-0001",
+  "created_at": "2026-09-21T12:10:00Z",
+  "created_by": { "type": "agent", "id": "security-reviewer", "role": "security-reviewer" },
+  "run_id": "RUN-security-reviewer-0001",
+  "links": [
+    { "rel": "threat", "href": "specs/examples/threat-model.json" }
+  ],
+  "feature_id": "FEAT-0001",
+  "threat_model_id": "TM-0001",
+  "verdict": "approved",
+  "risk_dispositions": [
+    { "risk_id": "RISK-0001", "severity": "high", "disposition": "mitigated", "verification_evidence": "apps/gateway/test/authorization_test.go" },
+    { "risk_id": "RISK-0002", "severity": "high", "disposition": "mitigated", "verification_evidence": "apps/domain/test/contract_test.go" },
+    { "risk_id": "RISK-0003", "severity": "medium", "disposition": "waived_medium", "waiver_id": "WAIVER-0001" }
+  ]
+}

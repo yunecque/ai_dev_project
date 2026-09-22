@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "threat-model",
+  "id": "TM-0001",
+  "created_at": "2026-09-21T10:40:00Z",
+  "created_by": { "type": "agent", "id": "grill-security", "role": "grill-security" },
+  "run_id": "RUN-grill-security-0001",
+  "links": [
+    { "rel": "specification", "href": "specs/examples/specification.json" }
+  ],
+  "feature_id": "FEAT-0001",
+  "status": "approved",
+  "method": "STRIDE",
+  "data_flows": [
+    { "id": "DF-1", "from": "user", "to": "gateway", "data": ["JWT", "request body"], "crosses_trust_boundary": true },
+    { "id": "DF-2", "from": "gateway", "to": "domain-service", "data": ["verified identity context", "request"], "crosses_trust_boundary": true },
+    { "id": "DF-3", "from": "domain-service", "to": "postgres", "data": ["request", "outbox event"], "crosses_trust_boundary": false },
+    { "id": "DF-4", "from": "publisher", "to": "nats", "data": ["RequestCreated"], "crosses_trust_boundary": false }
+  ],
+  "risks": [
+    {
+      "id": "RISK-0001",
+      "category": "elevation_of_privilege",
+      "scenario": "Пользователь читает чужую заявку, подставив чужой request id (IDOR).",
+      "severity": "high",
+      "control_id": "CTRL-0001",
+      "verification_test": "authorization test: GET /requests/{id} другого владельца возвращает 404"
+    },
+    {
+      "id": "RISK-0002",
+      "category": "spoofing",
+      "scenario": "Подделка identity context на пути gateway→domain, обход проверки JWT.",
+      "severity": "high",
+      "control_id": "CTRL-0002",
+      "verification_test": "grpc contract test: domain отклоняет запрос без verified identity context"
+    },
+    {
+      "id": "RISK-0003",
+      "category": "repudiation",
+      "scenario": "Событие RequestCreated теряется или дублируется при сбое, аудит расходится с состоянием.",
+      "severity": "medium",
+      "control_id": "CTRL-0003",
+      "verification_test": "event contract test: повторная доставка не создаёт дубликат обработки"
+    }
+  ],
+  "approval": {
+    "approved": true,
+    "by": { "type": "human", "id": "zarl3", "role": "security-reviewer" },
+    "at": "2026-09-21T11:00:00Z",
+    "note": "Threat model утверждена; High findings блокируют merge до закрытия."
+  }
+}

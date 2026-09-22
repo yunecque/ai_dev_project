@@ -1,0 +1,174 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  schema-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install control plane
+        run: pip install -e "control-plane[dev]"
+      - name: Validate baseline
+        run: sdlc validate baseline.json
+      - name: Validate workflow artifacts
+        run: |
+          mapfile -t files < <(find specs -name '*.json' -not -path '*/generated/*')
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "::warning::no artifacts found under specs/"
+            exit 0
+          fi
+          sdlc validate "${files[@]}"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python lint
+        run: |
+          pip install -e "control-plane[dev]"
+          ruff check control-plane/src control-plane/tests
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Go lint
+        run: |
+          if [ -f apps/gateway/go.mod ]; then
+            gofmt -l apps | tee /tmp/gofmt.out
+            test ! -s /tmp/gofmt.out
+          else
+            echo "::warning::no Go modules yet (M1)"
+          fi
+
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Python typecheck
+        run: |
+          pip install -e "control-plane[dev]"
+          cd control-plane
+          mypy
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Go vet
+        run: |
+          if [ -f apps/gateway/go.mod ]; then
+            (cd apps/gateway && go vet ./...)
+          else
+            echo "::warning::no Go modules yet (M1)"
+          fi
+
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Control plane tests
+        run: |
+          pip install -e "control-plane[dev]"
+          pytest control-plane -q
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - name: Go unit tests
+        run: |
+          if [ -f apps/gateway/go.mod ]; then
+            (cd apps/gateway && go test ./...)
+          else
+            echo "::warning::no Go modules yet (M1)"
+          fi
+
+  # --- Stages implemented in M1 / M3. Placeholders keep required-check names present. ---
+
+  contract-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::contract-tests implemented in M1"
+
+  sast:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::sast (Semgrep/CodeQL) implemented in M1"
+
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::dependency-scan (Trivy) implemented in M3"
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::integration-tests implemented in M1"
+
+  security-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::security-tests implemented in M1"
+
+  policy-check:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::policy-check (OPA) implemented in M1"
+
+  build-image:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::build-image implemented in M1/M3"
+
+  container-scan:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::container-scan (Trivy) implemented in M3"
+
+  sbom-generate:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::sbom-generate (Syft) implemented in M3"
+
+  sign-and-attest:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-image, sbom-generate]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+    steps:
+      - run: echo "::warning::sign-and-attest (Cosign keyless + attestations) implemented in M3"

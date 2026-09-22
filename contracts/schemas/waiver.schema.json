@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/schemas/waiver.schema.json",
+  "title": "Waiver",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_type", "id", "created_at", "created_by", "risk_id", "severity", "justification", "compensating_control", "owner", "expires_at", "status", "approved_by"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "artifact_type": { "type": "string", "const": "waiver" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "created_at": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "created_by": { "$ref": "common.schema.json#/$defs/actor" },
+    "risk_id": { "$ref": "common.schema.json#/$defs/id" },
+    "severity": { "type": "string", "const": "medium", "description": "Waivers допустимы только для Medium. Critical/High никогда." },
+    "justification": { "type": "string", "minLength": 1 },
+    "compensating_control": { "type": "string", "minLength": 1 },
+    "owner": { "$ref": "common.schema.json#/$defs/actor" },
+    "expires_at": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "status": { "type": "string", "enum": ["active", "expired", "revoked"] },
+    "approved_by": { "$ref": "common.schema.json#/$defs/actor" },
+    "links": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/link" } }
+  }
+}

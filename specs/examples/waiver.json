@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "waiver",
+  "id": "WAIVER-0001",
+  "created_at": "2026-09-21T12:15:00Z",
+  "created_by": { "type": "human", "id": "zarl3", "role": "platform-owner" },
+  "risk_id": "RISK-0003",
+  "severity": "medium",
+  "justification": "Дубликаты обработки в M1 ограничены demo-нагрузкой; риск принят на время до включения persistent dedup store.",
+  "compensating_control": "Идемпотентность по event id в worker + алерт на дубликаты в Grafana.",
+  "owner": { "type": "human", "id": "zarl3", "role": "platform-owner" },
+  "expires_at": "2026-12-21T00:00:00Z",
+  "status": "active",
+  "approved_by": { "type": "human", "id": "zarl3", "role": "security-reviewer" },
+  "links": [
+    { "rel": "threat", "href": "specs/examples/threat-model.json" }
+  ]
+}

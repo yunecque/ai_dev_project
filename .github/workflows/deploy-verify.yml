@@ -1,0 +1,38 @@
+name: deploy-verify
+
+# Independent verification of the release candidate before staging deployment.
+# Must not share mutable state with the build job (ADR-0005, constitution section 9).
+# Implemented in M3: signature / SBOM / provenance / policy / approvals.
+
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Container image reference to verify"
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+  attestations: read
+
+jobs:
+  verify-signature:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::signature verification (Cosign) implemented in M3"
+
+  verify-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::SBOM verification (Syft) implemented in M3"
+
+  verify-provenance:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::provenance verification (attestations) implemented in M3"
+
+  verify-policy-and-approvals:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "::warning::policy + approval verification implemented in M3"

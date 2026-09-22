@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/schemas/common.schema.json",
+  "title": "Common definitions for Secure Agentic SDLC workflow artifacts",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9]*-[0-9]{4}$",
+      "description": "Идентификатор вида FEAT-0001, TASK-0001, THREAT-0001, CTRL-0001, REQ-0001, RISK-0001."
+    },
+    "runId": {
+      "type": "string",
+      "pattern": "^RUN-[A-Za-z0-9-]{6,}$",
+      "description": "Уникальный идентификатор agent run."
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "isoDateTime": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "trustTier": {
+      "type": "string",
+      "enum": ["trusted", "untrusted", "sensitive"]
+    },
+    "severity": {
+      "type": "string",
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "strideCategory": {
+      "type": "string",
+      "enum": ["spoofing", "tampering", "repudiation", "information_disclosure", "denial_of_service", "elevation_of_privilege"]
+    },
+    "actorRole": {
+      "type": "string",
+      "enum": ["author", "security-reviewer", "platform-owner", "release-approver", "grill", "grill-security", "planner", "task-writer", "implementer", "reviewer"]
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id", "role"],
+      "properties": {
+        "type": { "type": "string", "enum": ["human", "agent", "ci"] },
+        "id": { "type": "string", "minLength": 1 },
+        "role": { "$ref": "#/$defs/actorRole" }
+      }
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approved", "by", "at"],
+      "properties": {
+        "approved": { "type": "boolean" },
+        "by": { "$ref": "#/$defs/actor" },
+        "at": { "$ref": "#/$defs/isoDateTime" },
+        "note": { "type": "string" },
+        "solo_override": { "type": "boolean", "default": false },
+        "solo_override_reason": { "type": "string" }
+      }
+    },
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rel", "href"],
+      "properties": {
+        "rel": {
+          "type": "string",
+          "enum": ["requirement", "threat", "control", "task", "code", "test", "review", "specification", "plan", "evidence", "policy-decision", "waiver", "pr", "commit"]
+        },
+        "href": { "type": "string", "minLength": 1 }
+      }
+    },
+    "envelope": {
+      "type": "object",
+      "required": ["schema_version", "artifact_type", "id", "created_at", "created_by"],
+      "properties": {
+        "schema_version": { "$ref": "#/$defs/semver" },
+        "artifact_type": { "type": "string" },
+        "id": { "$ref": "#/$defs/id" },
+        "created_at": { "$ref": "#/$defs/isoDateTime" },
+        "created_by": { "$ref": "#/$defs/actor" },
+        "run_id": { "$ref": "#/$defs/runId" },
+        "links": { "type": "array", "items": { "$ref": "#/$defs/link" } }
+      }
+    }
+  }
+}

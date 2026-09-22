@@ -1,0 +1,65 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "specification",
+  "id": "SPEC-0001",
+  "created_at": "2026-09-21T10:10:00Z",
+  "created_by": { "type": "agent", "id": "grill", "role": "grill" },
+  "run_id": "RUN-grill-0001",
+  "links": [
+    { "rel": "requirement", "href": "specs/examples/idea.json" }
+  ],
+  "feature_id": "FEAT-0001",
+  "status": "approved",
+  "actor_goal": {
+    "actors": ["authenticated user", "operator"],
+    "goal": "Создать заявку и читать только свои заявки; оператор обрабатывает заявки по разрешённому workflow."
+  },
+  "scope_boundary": {
+    "in_scope": [
+      "POST /requests с verified identity context",
+      "GET /requests/{id} с проверкой владельца",
+      "Transactional outbox события RequestCreated",
+      "Идемпотентный worker"
+    ],
+    "out_of_scope": [
+      "Operator workflow в M1",
+      "Полный lifecycle заявки в M1",
+      "Web UI"
+    ]
+  },
+  "data_model": [
+    {
+      "entity": "request",
+      "fields": ["id", "owner_subject", "title", "status", "created_at"],
+      "constraints": ["owner_subject NOT NULL", "status IN (created, processing, done)"]
+    },
+    {
+      "entity": "outbox",
+      "fields": ["id", "aggregate_id", "event_type", "payload", "published_at"],
+      "constraints": ["event_type = 'RequestCreated'", "published_at NULL until published"]
+    }
+  ],
+  "api_contract": [
+    { "operation_id": "createRequest", "kind": "rest", "summary": "Создать заявку", "contract_ref": "contracts/openapi/requests.yaml#/paths/~1requests/post" },
+    { "operation_id": "getRequest", "kind": "rest", "summary": "Получить заявку по id", "contract_ref": "contracts/openapi/requests.yaml#/paths/~1requests~1{id}/get" },
+    { "operation_id": "DomainService.CreateRequest", "kind": "grpc", "summary": "Создание заявки в domain service", "contract_ref": "contracts/proto/domain/v1/domain.proto" },
+    { "operation_id": "request.created", "kind": "event", "summary": "Событие о создании заявки", "contract_ref": "contracts/events/request-created.schema.json" }
+  ],
+  "state_lifecycle": [
+    { "from": "created", "to": "processing", "actor": "worker" },
+    { "from": "processing", "to": "done", "actor": "worker" }
+  ],
+  "dependencies": ["PostgreSQL", "NATS JetStream", "Keycloak OIDC"],
+  "non_goals": ["Production deployment", "Multi-domain support"],
+  "acceptance_criteria": [
+    { "requirement_id": "REQ-0001", "criterion": "Пользователь может создать заявку через POST /requests", "verification": "api_acceptance" },
+    { "requirement_id": "REQ-0002", "criterion": "Пользователь видит только свои заявки", "verification": "authorization" },
+    { "requirement_id": "REQ-0003", "criterion": "Событие RequestCreated публикуется ровно один раз и обрабатывается идемпотентно", "verification": "event_contract" }
+  ],
+  "approval": {
+    "approved": true,
+    "by": { "type": "human", "id": "zarl3", "role": "author" },
+    "at": "2026-09-21T10:30:00Z",
+    "note": "Specification утверждена для реализации M1."
+  }
+}

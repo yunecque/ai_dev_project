@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/schemas/policy-decision.schema.json",
+  "title": "Policy Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_type", "id", "created_at", "actor", "run_id", "point", "decision", "reason_codes", "policy_bundle_version", "input_digest"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "artifact_type": { "type": "string", "const": "policy-decision" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "created_at": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "actor": { "$ref": "common.schema.json#/$defs/actor" },
+    "run_id": { "$ref": "common.schema.json#/$defs/runId" },
+    "point": { "type": "string", "enum": ["pre-tool-call", "artifact-transition", "pr-ci", "pre-deployment"] },
+    "decision": { "type": "string", "enum": ["allow", "deny"] },
+    "reason_codes": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "policy_bundle_version": { "type": "string" },
+    "input_digest": { "$ref": "common.schema.json#/$defs/sha256" },
+    "links": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/link" } }
+  }
+}

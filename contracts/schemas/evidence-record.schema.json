@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/schemas/evidence-record.schema.json",
+  "title": "Evidence Record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_type", "id", "created_at", "actor", "run_id", "action", "trust_tier", "sensitivity"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "artifact_type": { "type": "string", "const": "evidence-record" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "created_at": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "actor": { "$ref": "common.schema.json#/$defs/actor" },
+    "run_id": { "$ref": "common.schema.json#/$defs/runId" },
+    "action": { "type": "string", "minLength": 1 },
+    "trust_tier": { "$ref": "common.schema.json#/$defs/trustTier" },
+    "sensitivity": { "type": "string", "enum": ["none", "redacted", "sensitive"] },
+    "artifact_digest": { "$ref": "common.schema.json#/$defs/sha256" },
+    "artifact_ref": { "type": "string" },
+    "policy_decision_ref": { "type": "string" },
+    "compression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["applied"],
+      "properties": {
+        "applied": { "type": "boolean" },
+        "original_digest": { "$ref": "common.schema.json#/$defs/sha256" },
+        "original_size_bytes": { "type": "integer", "minimum": 0 },
+        "compressed_size_bytes": { "type": "integer", "minimum": 0 },
+        "recovery_handle": { "type": "string" }
+      }
+    },
+    "links": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/link" } }
+  }
+}

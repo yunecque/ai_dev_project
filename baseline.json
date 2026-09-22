@@ -1,0 +1,76 @@
+{
+  "$schema": "./contracts/schemas/baseline.schema.json",
+  "baseline_id": "BASELINE-V1",
+  "version": "1.0.0",
+  "status": "approved",
+  "profile": "strict",
+  "approved_by": ["platform-owner"],
+  "approved_at": "2026-09-21",
+  "purpose": "Единый архитектурный baseline: агенты используют только разрешённые технологии, версии, integration patterns и security controls.",
+  "languages": {
+    "production_services": { "name": "Go", "min_version": "1.22" },
+    "agent_control_plane": { "name": "Python", "min_version": "3.12", "max_version": "3.12.x" },
+    "policy_as_code": { "name": "Rego", "engine": "OPA", "min_version": "0.66" }
+  },
+  "communication": {
+    "external": { "protocol": "REST/JSON", "contract": "OpenAPI 3.1" },
+    "internal": { "protocol": "gRPC", "idl": "Protobuf" },
+    "domain_events": {
+      "broker": "NATS JetStream",
+      "pattern": "transactional outbox + idempotent consumers"
+    }
+  },
+  "identity": {
+    "protocol": "OIDC",
+    "provider": "Keycloak",
+    "service_identities": [
+      "gateway",
+      "domain-service",
+      "broker-publish",
+      "broker-subscribe",
+      "ci-deployment-workload"
+    ]
+  },
+  "policy_engine": {
+    "engine": "Open Policy Agent",
+    "language": "Rego",
+    "enforcement_points": [
+      "pre-tool-call",
+      "artifact-transition",
+      "pr-ci",
+      "pre-deployment"
+    ],
+    "fail_mode": "closed",
+    "decision_format": "machine-readable allow/deny with reason codes, policy bundle version, input digest, actor/run id"
+  },
+  "containerization": {
+    "runtime": "Docker",
+    "local_orchestration": "Docker Compose"
+  },
+  "observability": {
+    "standard": "OpenTelemetry",
+    "signals": ["traces", "metrics", "logs"],
+    "pipeline": "OTel Collector",
+    "backends": {
+      "metrics": "Prometheus + Grafana",
+      "logs": "Loki",
+      "traces": "Tempo"
+    },
+    "mandatory_redaction": ["secrets", "tokens", "PII"]
+  },
+  "security_tooling": {
+    "secrets": "Gitleaks",
+    "sast": ["Semgrep", "CodeQL"],
+    "dependency_and_container_scan": "Trivy",
+    "sbom": "Syft",
+    "signing": "Cosign keyless via GitHub OIDC",
+    "provenance": "GitHub artifact attestations"
+  },
+  "deployment": {
+    "current": "local",
+    "next": "mini-pc-staging",
+    "optional_future": "cloud",
+    "constraint": "без изменения application/security contracts"
+  },
+  "supply_chain_controls_always_required": ["signing", "sbom", "secret-scanning"]
+}

@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "evidence-record",
+  "id": "EV-0001",
+  "created_at": "2026-09-21T12:21:00Z",
+  "actor": { "type": "ci", "id": "github-actions", "role": "reviewer" },
+  "run_id": "RUN-implementer-0001",
+  "action": "ci.integration-tests.failed",
+  "trust_tier": "untrusted",
+  "sensitivity": "redacted",
+  "artifact_digest": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "artifact_ref": "docs/evidence/ci-integration-0001.log",
+  "policy_decision_ref": "specs/examples/policy-decision.json",
+  "compression": {
+    "applied": true,
+    "original_digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "original_size_bytes": 5242880,
+    "compressed_size_bytes": 40960,
+    "recovery_handle": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }
+}

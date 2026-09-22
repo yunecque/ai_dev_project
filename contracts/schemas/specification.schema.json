@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/schemas/specification.schema.json",
+  "title": "Specification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_type", "id", "created_at", "created_by", "feature_id", "status", "actor_goal", "scope_boundary", "data_model", "api_contract", "state_lifecycle", "dependencies", "non_goals", "acceptance_criteria"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "artifact_type": { "type": "string", "const": "specification" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "created_at": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "created_by": { "$ref": "common.schema.json#/$defs/actor" },
+    "run_id": { "$ref": "common.schema.json#/$defs/runId" },
+    "links": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/link" } },
+    "feature_id": { "$ref": "common.schema.json#/$defs/id" },
+    "status": { "type": "string", "enum": ["draft", "in_review", "approved", "rejected", "superseded"] },
+    "actor_goal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["actors", "goal"],
+      "properties": {
+        "actors": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "goal": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scope_boundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["in_scope", "out_of_scope"],
+      "properties": {
+        "in_scope": { "type": "array", "items": { "type": "string" } },
+        "out_of_scope": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "data_model": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["entity", "fields"],
+        "properties": {
+          "entity": { "type": "string" },
+          "fields": { "type": "array", "items": { "type": "string" } },
+          "constraints": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "api_contract": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["operation_id", "kind", "summary"],
+        "properties": {
+          "operation_id": { "type": "string" },
+          "kind": { "type": "string", "enum": ["rest", "grpc", "event"] },
+          "summary": { "type": "string" },
+          "contract_ref": { "type": "string" }
+        }
+      }
+    },
+    "state_lifecycle": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["from", "to", "actor"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "actor": { "type": "string" }
+        }
+      }
+    },
+    "dependencies": { "type": "array", "items": { "type": "string" } },
+    "non_goals": { "type": "array", "items": { "type": "string" } },
+    "acceptance_criteria": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["requirement_id", "criterion"],
+        "properties": {
+          "requirement_id": { "$ref": "common.schema.json#/$defs/id" },
+          "criterion": { "type": "string", "minLength": 1 },
+          "verification": { "type": "string" }
+        }
+      }
+    },
+    "approval": { "$ref": "common.schema.json#/$defs/approval" }
+  }
+}

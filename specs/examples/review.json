@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "review",
+  "id": "REV-0001",
+  "created_at": "2026-09-21T12:00:00Z",
+  "created_by": { "type": "agent", "id": "reviewer", "role": "reviewer" },
+  "run_id": "RUN-reviewer-0001",
+  "links": [
+    { "rel": "task", "href": "specs/examples/task.json" },
+    { "rel": "pr", "href": "https://github.com/zarl3/ai_dev_project/pull/1" }
+  ],
+  "task_id": "TASK-0001",
+  "implementer_run_id": "RUN-implementer-0001",
+  "subject_digest": "a3f5c1d2e4b678901234567890abcdef1234567890abcdef1234567890abcdef",
+  "verdict": "approved",
+  "findings": []
+}

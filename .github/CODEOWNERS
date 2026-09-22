@@ -1,0 +1,21 @@
+# CODEOWNERS — separation of duties for the Secure Agentic SDLC repository.
+#
+# Replace @zarl3 with the actual GitHub handle/team before enabling branch protection.
+# Protected zones must not be editable by the agent: changes require the owner's review.
+#
+# Docs: https://docs.github.com/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner
+*                                   @zarl3
+
+# Protected zones (security / governance / supply chain)
+/policies/                          @zarl3
+/security/                          @zarl3
+/infra/                             @zarl3
+/.github/                           @zarl3
+/contracts/                         @zarl3
+/baseline.json                      @zarl3
+/ARCHITECTURE_BASELINE.md           @zarl3
+/docs/adr/                          @zarl3
+/docs/roadmap.md                    @zarl3
+/specs/                             @zarl3

@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/schemas/threat-model.schema.json",
+  "title": "Threat Model",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "artifact_type", "id", "created_at", "created_by", "feature_id", "status", "method", "data_flows", "risks"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "artifact_type": { "type": "string", "const": "threat-model" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "created_at": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "created_by": { "$ref": "common.schema.json#/$defs/actor" },
+    "run_id": { "$ref": "common.schema.json#/$defs/runId" },
+    "links": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/link" } },
+    "feature_id": { "$ref": "common.schema.json#/$defs/id" },
+    "status": { "type": "string", "enum": ["draft", "in_review", "approved", "rejected", "superseded"] },
+    "method": { "type": "string", "const": "STRIDE" },
+    "data_flows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "from", "to", "data", "crosses_trust_boundary"],
+        "properties": {
+          "id": { "type": "string" },
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "data": { "type": "array", "items": { "type": "string" } },
+          "crosses_trust_boundary": { "type": "boolean" }
+        }
+      }
+    },
+    "risks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "category", "scenario", "severity", "control_id", "verification_test"],
+        "properties": {
+          "id": { "$ref": "common.schema.json#/$defs/id" },
+          "category": { "$ref": "common.schema.json#/$defs/strideCategory" },
+          "scenario": { "type": "string", "minLength": 1 },
+          "severity": { "$ref": "common.schema.json#/$defs/severity" },
+          "control_id": { "$ref": "common.schema.json#/$defs/id" },
+          "verification_test": { "type": "string", "minLength": 1 },
+          "residual_risk": { "type": "string" },
+          "waiver_id": { "$ref": "common.schema.json#/$defs/id" }
+        }
+      }
+    },
+    "approval": { "$ref": "common.schema.json#/$defs/approval" }
+  }
+}

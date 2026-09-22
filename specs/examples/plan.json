@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "plan",
+  "id": "PLAN-0001",
+  "created_at": "2026-09-21T11:10:00Z",
+  "created_by": { "type": "agent", "id": "planner", "role": "planner" },
+  "run_id": "RUN-planner-0001",
+  "links": [
+    { "rel": "specification", "href": "specs/examples/specification.json" },
+    { "rel": "threat", "href": "specs/examples/threat-model.json" }
+  ],
+  "feature_id": "FEAT-0001",
+  "status": "approved",
+  "slices": [
+    {
+      "slice_id": "S1",
+      "title": "POST /requests: contract → gateway → gRPC → domain → Postgres",
+      "requirement_ids": ["REQ-0001", "REQ-0002"],
+      "control_ids": ["CTRL-0001", "CTRL-0002"],
+      "depends_on": [],
+      "notes": "Вертикальный срез: контракт, код, тесты."
+    },
+    {
+      "slice_id": "S2",
+      "title": "Transactional outbox → publisher → NATS → идемпотентный worker",
+      "requirement_ids": ["REQ-0003"],
+      "control_ids": ["CTRL-0003"],
+      "depends_on": ["S1"]
+    }
+  ],
+  "approval": {
+    "approved": true,
+    "by": { "type": "human", "id": "zarl3", "role": "platform-owner" },
+    "at": "2026-09-21T11:30:00Z"
+  }
+}
