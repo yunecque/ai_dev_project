@@ -17,7 +17,7 @@
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
 | M1 Walking skeleton | 100% | TASK-0001…0012 done; walking skeleton собран |
-| M2 Домен и lifecycle | ~55% | TASK-0001…0003 done; feature `FEAT-0002` |
+| M2 Домен и lifecycle | ~70% | TASK-0001…0004 done; feature `FEAT-0002` |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
 | M5 Portfolio | не начат | |
@@ -92,7 +92,7 @@ semgrep=1.177.0  uv=0.12.17
 cd control-plane
 python -m ruff check src tests      # All checks passed
 python -m mypy                      # Success: no issues found (17 files, strict)
-python -m pytest -q                 # 77 passed
+python -m pytest -q                 # 99 passed
 sdlc validate ../specs/examples/*.json   # все OK
 sdlc validate ../baseline.json           # OK
 
@@ -121,7 +121,7 @@ apps/domain/migrations/0001_init.sql  # requests + outbox
 apps/worker/migrations/0002_processed_events.sql  # идемпотентность consumer'а
 apps/go.mod                       # единый Go-модуль github.com/yunecque/ai_dev_project/apps
 apps/gen/domain/v1/               # сгенерированный из proto код (buf, local plugins)
-control-plane/                    # Python 3.12: src/sdlc (artifacts, policy, runner, evidence), tests
+control-plane/                    # Python 3.12: src/sdlc (artifacts, policy, runner, evidence, waiver), tests
 contracts/schemas/                # 12 JSON Schema (workflow artifacts)
 contracts/openapi/requests.yaml   # REST-контракт golden path (OpenAPI 3.1)
 contracts/proto/domain/v1/domain.proto  # gRPC-контракт DomainService
@@ -255,7 +255,15 @@ Feature `FEAT-0002`: operator workflow, полная authz-матрица, waive
     `ListRequests` — не-operator видит только свои; `UpdateRequestStatus` — только operator
     (`PermissionDenied`); отсутствие identity context → `InvalidArgument` (CTRL-0002).
   - тесты: domain authz (11), gateway (14), proto/OpenAPI 403; `authorization_test.go` обновлён.
-- [ ] **TASK-0004** — waiver-механика (валидация, истечение, запрет для агента).
+- [x] **TASK-0004** — waiver-механика.
+  - `control-plane/src/sdlc/waiver/`: `is_waivable` (только Medium), `may_manage_waiver`
+    (только human; agent/ci — нет), `validate_waiver` (approver = security-reviewer,
+    separation of duties owner≠approver, expiry>created), `waiver_state`, `check_waiver`,
+    `evaluate_risk` (Critical/High — всегда блок; Medium — только по active waiver; Low —
+    не блок; unknown severity — fail-closed).
+  - CLI: `sdlc waiver <path> [--now]` (schema + семантика, exit 1 при блоке).
+  - CI: `security-tests` теперь включает `test_waiver.py`.
+  - Тесты: `tests/test_waiver.py` (22); всего 99 passed.
 - [ ] **TASK-0005** — OPA точка `artifact-transition`.
 - [ ] **TASK-0006** — e2e operator-flow, обновление `docs/sequences.md` и `PROGRESS.md`.
 
