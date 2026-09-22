@@ -5,9 +5,11 @@ GitHub — control plane MVP (ADR-0008). Настройки применяютс
 ## `main` (protected)
 
 - Require a pull request before merging.
-  - Require approvals: **1** (solo-mode: владелец; при появлении второго участника — 2, из них один security).
+  - Require approvals: **0** в solo-mode (ADR-0012). При появлении второго участника — **1**,
+    затем **2** (один из них security).
   - Dismiss stale approvals on new commits: **on**.
-  - Require review from Code Owners: **on**.
+  - Require review from Code Owners: **off** в solo-mode (ADR-0012); **on** при появлении второго
+    участника.
 - Require status checks to pass before merging: **on**.
   - Require branches to be up to date: **on**.
 - Require conversation resolution: **on**.

@@ -3,9 +3,10 @@
 Состояние реализации Secure Agentic SDLC. Самодостаточный handoff: новая сессия/человек
 продолжает отсюда, прочитав также `AGENTS.md` и `ARCHITECTURE_BASELINE.md`.
 
-- Обновлено: 2026-09-21
-- Текущий milestone: **M0 — Фундамент** (почти завершён)
+- Обновлено: 2026-09-22
+- Текущий milestone: **M0 — Фундамент** (завершён)
 - Следующий: **M1 — Walking skeleton**
+- Remote: https://github.com/yunecque/ai_dev_project (main, protected)
 
 ---
 
@@ -13,7 +14,7 @@
 
 | Milestone | Статус | Примечание |
 |---|---|---|
-| M0 Фундамент | ~95% | остался GitHub remote (нужен `gh auth login`) |
+| M0 Фундамент | 100% | завершён; remote + branch protection применены |
 | M1 Walking skeleton | не начат | зависит от M0 |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
@@ -24,7 +25,7 @@
 
 - [x] Структура монорепо (§7)
 - [x] `baseline.json` + `ARCHITECTURE_BASELINE.md` (профиль `strict`)
-- [x] ADR 0001–0010 + индекс
+- [x] ADR 0001–0011 + индекс (0011 — граница контроля и размещение агента)
 - [x] `docs/roadmap.md`, `docs/evidence-model.md`, `docs/branch-protection.md`
 - [x] JSON Schemas всех workflow-артефактов + примеры в `specs/examples/`
 - [x] Control plane: валидатор + рендерер JSON→Markdown (`sdlc validate|render`), тесты
@@ -32,7 +33,8 @@
 - [x] Локальный стек `infra/compose/` (проверен, все сервисы healthy)
 - [x] CI skeleton `.github/workflows/ci.yml` + `deploy-verify.yml`
 - [x] Toolchain в WSL (user-local, без sudo), `infra/wsl/toolchain.lock`
-- [ ] GitHub repo + push + branch protection → **требует `gh auth login`** (см. §5)
+- [x] `.gitattributes` (LF-нормализация для кросс-платформенности)
+- [x] GitHub repo + push + branch protection → https://github.com/yunecque/ai_dev_project (15 required checks, enforce_admins, 1 review)
 
 ---
 
@@ -115,24 +117,27 @@ docs/{adr,roadmap.md,evidence-model.md,branch-protection.md}
 baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
 ```
 
+### Зафиксированные решения (2026-09-22)
+
+Документированы в `README.md` («Модель исполнения и контроля») и `docs/adr/0011-...`:
+
+- Продукт A (платформа) и B (reference-приложение) разведены.
+- Инструкции = in-band, не контроль; enforcement только out-of-band.
+- Граница = capability removal + mediation (MCP + OPA pre-tool-call) + tamper-proofing.
+- Размещение агента: M1 — host; цель — контейнер; sandbox всегда эфемерный.
+- Ограничение opencode через `.opencode/` (MCP + `permission` + plugin→OPA); роли → profiles.
+- Solo-mode review: ADR-0012 (0 approvals при сохранении автогейтов).
+
 ---
 
 ## 5. Открытые пункты / блокеры
 
-1. **GitHub control plane — единственный блокер.** `gh` не авторизован.
-   Требуется интерактивно:
-   ```bash
-   wsl -d Ubuntu -- bash -lc "gh auth login"
-   ```
-   Затем (одной командой):
-   ```bash
-   wsl -d Ubuntu -- bash -lc "cd /mnt/c/Users/zarl3/IdeaProjects/ai_dev_project && bash infra/github/setup-remote.sh ai_dev_project public"
-   ```
-   Скрипт: создаёт repo, пушит `main`, ставит branch protection с 15 required checks.
-   Требует, чтобы в репозитории был хотя бы один commit.
-2. **Commit M0 не сделан** (правило: коммит только по явному запросу).
-   В индексе остались прежние `.idea/*` — решить, убрать из индекса или нет.
-3. **Второй human reviewer / staging environment** — создать после появления remote.
+1. **M0 закоммичен и запушен.** Commit `2570c2e` на `main` (repo public, branch protection активна).
+2. **PR #1 (`chore/m0-progress`) разблокирован.** Политика review решена: **ADR-0012** —
+   solo-mode `required_approving_review_count=0` + `require_code_owner_reviews=false`; 15 required
+   checks, `enforce_admins`, PR-only и запрет force-push сохранены. Возврат к human review — при
+   появлении второго участника.
+3. **Создать `staging` environment** в GitHub с required reviewer (`release-approver`) — для M4/release gate.
 4. Опционально: `sudo apt install -y python3-venv` (не требуется, semgrep поставлен через `uv`).
 
 ---
