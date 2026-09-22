@@ -15,6 +15,8 @@ import (
 const (
 	maxTitleLen       = 200
 	maxDescriptionLen = 4000
+	defaultListLimit  = 50
+	maxListLimit      = 200
 
 	statusCreated    = "created"
 	statusTriaged    = "triaged"
@@ -74,11 +76,19 @@ type Event struct {
 	PreviousStatus string
 }
 
+// ListFilter narrows a request listing. Empty fields mean "no filter".
+type ListFilter struct {
+	Status  string
+	Subject string
+	Limit   int
+}
+
 // Store persists requests together with their outbox events atomically.
 type Store interface {
 	CreateRequestWithEvent(ctx context.Context, request Request, event Event) error
 	GetRequest(ctx context.Context, id string) (Request, error)
 	UpdateRequestStatusWithEvent(ctx context.Context, request Request, event Event) error
+	ListRequests(ctx context.Context, filter ListFilter) ([]Request, error)
 }
 
 // Service implements the DomainService gRPC contract.
@@ -174,6 +184,57 @@ func (s *Service) UpdateRequestStatus(
 		return nil, status.Error(codes.Internal, "failed to persist status change")
 	}
 	return &domainv1.UpdateRequestStatusResponse{Request: requestProto(updated)}, nil
+}
+
+// GetRequest reads a single request by id for the operator workflow.
+func (s *Service) GetRequest(
+	ctx context.Context, in *domainv1.GetRequestRequest,
+) (*domainv1.GetRequestResponse, error) {
+	requestID := strings.TrimSpace(in.GetRequestId())
+	if requestID == "" {
+		return nil, status.Error(codes.InvalidArgument, "request_id is required")
+	}
+	request, err := s.store.GetRequest(ctx, requestID)
+	if errors.Is(err, ErrRequestNotFound) {
+		return nil, status.Error(codes.NotFound, "request not found")
+	}
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to load request")
+	}
+	return &domainv1.GetRequestResponse{Request: requestProto(request)}, nil
+}
+
+// ListRequests lists requests with optional status/subject filters and a bounded limit.
+func (s *Service) ListRequests(
+	ctx context.Context, in *domainv1.ListRequestsRequest,
+) (*domainv1.ListRequestsResponse, error) {
+	statusFilter := strings.TrimSpace(in.GetStatus())
+	if statusFilter != "" {
+		if _, known := transitions[statusFilter]; !known {
+			return nil, status.Error(codes.InvalidArgument, "unknown status filter")
+		}
+	}
+	limit := int(in.GetLimit())
+	if limit <= 0 {
+		limit = defaultListLimit
+	}
+	if limit > maxListLimit {
+		limit = maxListLimit
+	}
+
+	requests, err := s.store.ListRequests(ctx, ListFilter{
+		Status:  statusFilter,
+		Subject: strings.TrimSpace(in.GetSubject()),
+		Limit:   limit,
+	})
+	if err != nil {
+		return nil, status.Error(codes.Internal, "failed to list requests")
+	}
+	out := make([]*domainv1.Request, 0, len(requests))
+	for _, request := range requests {
+		out = append(out, requestProto(request))
+	}
+	return &domainv1.ListRequestsResponse{Requests: out}, nil
 }
 
 func requestProto(request Request) *domainv1.Request {

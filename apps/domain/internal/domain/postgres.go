@@ -138,6 +138,42 @@ func (p *PostgresStore) GetRequest(ctx context.Context, id string) (Request, err
 	return request, nil
 }
 
+func (p *PostgresStore) ListRequests(ctx context.Context, filter ListFilter) ([]Request, error) {
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = defaultListLimit
+	}
+	rows, err := p.pool.Query(ctx,
+		`SELECT id, title, description, subject, status, created_at
+		 FROM requests
+		 WHERE ($1 = '' OR status = $1)
+		   AND ($2 = '' OR subject = $2)
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT $3`,
+		filter.Status, filter.Subject, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []Request
+	for rows.Next() {
+		var (
+			request   Request
+			createdAt time.Time
+		)
+		if err := rows.Scan(
+			&request.ID, &request.Title, &request.Description, &request.Subject, &request.Status, &createdAt,
+		); err != nil {
+			return nil, err
+		}
+		request.CreatedAt = createdAt.UTC().Format(time.RFC3339)
+		out = append(out, request)
+	}
+	return out, rows.Err()
+}
+
 func (p *PostgresStore) UpdateRequestStatusWithEvent(ctx context.Context, request Request, event Event) error {
 	payload, err := buildPayload(event)
 	if err != nil {

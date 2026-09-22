@@ -148,6 +148,66 @@ func TestPostgresStoreUpdatesStatusAndOutboxAtomically(t *testing.T) {
 	}
 }
 
+func TestPostgresStoreListRequestsFilters(t *testing.T) {
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	if dsn == "" {
+		t.Skip("TEST_DATABASE_URL not set")
+	}
+	ctx := context.Background()
+
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatalf("pool: %v", err)
+	}
+	defer pool.Close()
+	applyMigrations(t, ctx, pool)
+	if _, err := pool.Exec(ctx, "TRUNCATE requests, outbox"); err != nil {
+		t.Fatalf("truncate: %v", err)
+	}
+
+	store, err := NewPostgresStore(ctx, dsn)
+	if err != nil {
+		t.Fatalf("store: %v", err)
+	}
+	defer store.Close()
+
+	first := Request{ID: requestID, Title: "t1", Subject: "user-1", Status: statusCreated, CreatedAt: createdAt}
+	second := Request{ID: "44444444-4444-4444-4444-444444444444", Title: "t2", Subject: "user-2", Status: statusTriaged, CreatedAt: "2026-09-23T00:00:00Z"}
+	for i, request := range []Request{first, second} {
+		event := Event{EventID: eventID1, EventType: eventTypeRequestCreated, OccurredAt: request.CreatedAt, Request: request}
+		if i == 1 {
+			event.EventID = eventID2
+		}
+		if err := store.CreateRequestWithEvent(ctx, request, event); err != nil {
+			t.Fatalf("seed %d: %v", i, err)
+		}
+	}
+
+	all, err := store.ListRequests(ctx, ListFilter{Limit: 10})
+	if err != nil {
+		t.Fatalf("list all: %v", err)
+	}
+	if len(all) != 2 || all[0].ID != second.ID {
+		t.Fatalf("all = %+v, want newest first", all)
+	}
+
+	byStatus, err := store.ListRequests(ctx, ListFilter{Status: statusTriaged, Limit: 10})
+	if err != nil {
+		t.Fatalf("list by status: %v", err)
+	}
+	if len(byStatus) != 1 || byStatus[0].ID != second.ID {
+		t.Fatalf("byStatus = %+v", byStatus)
+	}
+
+	bySubject, err := store.ListRequests(ctx, ListFilter{Subject: "user-1", Limit: 10})
+	if err != nil {
+		t.Fatalf("list by subject: %v", err)
+	}
+	if len(bySubject) != 1 || bySubject[0].ID != first.ID {
+		t.Fatalf("bySubject = %+v", bySubject)
+	}
+}
+
 func countRows(t *testing.T, ctx context.Context, pool *pgxpool.Pool) (int, int) {
 	t.Helper()
 	var requests, outbox int

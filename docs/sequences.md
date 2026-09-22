@@ -54,7 +54,7 @@ sequenceDiagram
 
 State machine `created → triaged → in_progress → resolved → closed` (+ `cancelled` из первых трёх).
 Изменить статус можно только по разрешённому переходу; изменение статуса и событие пишутся одной
-транзакцией (transactional outbox). REST-часть (`PATCH /requests/{id}/status`) — TASK-0002.
+транзакцией (transactional outbox). Operator workflow (list/get/update) — REST в gateway (TASK-0002).
 
 ```mermaid
 sequenceDiagram
@@ -66,7 +66,7 @@ sequenceDiagram
     participant Pub as publisher (Go)
     participant N as NATS JetStream
 
-    Op->>G: PATCH /requests/{id}/status (Bearer JWT)   %% TASK-0002
+    Op->>G: PATCH /requests/{id}/status (Bearer JWT)
     G->>D: gRPC UpdateRequestStatus(id, new_status, actor)
     D->>P: SELECT request
     D->>D: CanTransition(current → new)
@@ -82,10 +82,14 @@ sequenceDiagram
     Pub->>N: publish requests.status-changed (route по типу события)
 ```
 
-Реализация: `apps/domain/internal/domain/{service,memory,postgres}.go` (`CanTransition`),
-`apps/publisher/internal/outbox/poller.go` (маршрутизация `eventSubjects`), событие —
-`contracts/events/request-status-changed.schema.json`.
-Тесты: `apps/domain/internal/domain/lifecycle_test.go`, `poller_test.go`, `test_contracts.py`.
+Оператор также читает заявки: `GET /requests` (фильтры `status`/`subject`/`limit`) и
+`GET /requests/{id}` → gRPC `ListRequests` / `GetRequest`.
+
+Реализация: `apps/domain/internal/domain/{service,memory,postgres}.go` (`CanTransition`, `ListFilter`),
+`apps/gateway/server.go` (REST → gRPC, маппинг кодов), `apps/publisher/internal/outbox/poller.go`
+(маршрутизация `eventSubjects`), событие — `contracts/events/request-status-changed.schema.json`.
+Тесты: `apps/domain/internal/domain/{lifecycle,query}_test.go`, `apps/gateway/server_test.go`,
+`poller_test.go`, `test_contracts.py`.
 
 ---
 

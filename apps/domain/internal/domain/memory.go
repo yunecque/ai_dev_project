@@ -3,6 +3,7 @@ package domain
 import (
 	"context"
 	"errors"
+	"sort"
 	"sync"
 )
 
@@ -57,6 +58,34 @@ func (m *MemoryStore) UpdateRequestStatusWithEvent(_ context.Context, request Re
 	m.requests[request.ID] = request
 	m.events = append(m.events, event)
 	return nil
+}
+
+func (m *MemoryStore) ListRequests(_ context.Context, filter ListFilter) ([]Request, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.failWith != nil {
+		return nil, m.failWith
+	}
+	out := make([]Request, 0, len(m.requests))
+	for _, request := range m.requests {
+		if filter.Status != "" && request.Status != filter.Status {
+			continue
+		}
+		if filter.Subject != "" && request.Subject != filter.Subject {
+			continue
+		}
+		out = append(out, request)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].CreatedAt != out[j].CreatedAt {
+			return out[i].CreatedAt > out[j].CreatedAt
+		}
+		return out[i].ID > out[j].ID
+	})
+	if filter.Limit > 0 && len(out) > filter.Limit {
+		out = out[:filter.Limit]
+	}
+	return out, nil
 }
 
 func (m *MemoryStore) Requests() []Request {

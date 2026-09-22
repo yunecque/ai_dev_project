@@ -9,6 +9,10 @@ service DomainService {
   rpc CreateRequest(CreateRequestRequest) returns (CreateRequestResponse);
   // Applies a lifecycle transition to an existing request and emits RequestStatusChanged.
   rpc UpdateRequestStatus(UpdateRequestStatusRequest) returns (UpdateRequestStatusResponse);
+  // Reads a single request by id (operator workflow).
+  rpc GetRequest(GetRequestRequest) returns (GetRequestResponse);
+  // Lists requests with optional status/subject filters (operator workflow).
+  rpc ListRequests(ListRequestsRequest) returns (ListRequestsResponse);
 }
 
 message CreateRequestRequest {
@@ -32,6 +36,27 @@ message UpdateRequestStatusRequest {
 
 message UpdateRequestStatusResponse {
   Request request = 1;
+}
+
+message GetRequestRequest {
+  string request_id = 1;
+}
+
+message GetRequestResponse {
+  Request request = 1;
+}
+
+message ListRequestsRequest {
+  // Optional lifecycle status filter; empty means no filter.
+  string status = 1;
+  // Optional owning subject filter; empty means no filter.
+  string subject = 2;
+  // Optional maximum number of results; the server applies a default and a cap.
+  int32 limit = 3;
+}
+
+message ListRequestsResponse {
+  repeated Request requests = 1;
 }
 
 message Request {
