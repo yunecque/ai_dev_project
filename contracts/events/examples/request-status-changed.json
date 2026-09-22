@@ -1,0 +1,11 @@
+{
+  "event_id": "4a8d3c2b-5e6f-4a70-9b82-3c4d5e6f7081",
+  "event_type": "request-status-changed",
+  "occurred_at": "2026-09-22T10:30:00Z",
+  "request": {
+    "id": "9c1f5e2d-7a3b-4c8d-9e0f-1a2b3c4d5e6f",
+    "status": "triaged",
+    "previous_status": "created",
+    "updated_at": "2026-09-22T10:30:00Z"
+  }
+}

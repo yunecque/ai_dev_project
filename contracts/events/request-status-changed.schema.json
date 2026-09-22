@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/events/request-status-changed.schema.json",
+  "title": "RequestStatusChanged",
+  "description": "Domain event emitted when a request moves to a new lifecycle status (transactional outbox -> NATS JetStream).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "occurred_at", "request"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "request-status-changed" },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "previous_status", "updated_at"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "status": {
+          "type": "string",
+          "enum": ["created", "triaged", "in_progress", "resolved", "closed", "cancelled"]
+        },
+        "previous_status": {
+          "type": "string",
+          "enum": ["created", "triaged", "in_progress", "resolved", "closed", "cancelled"]
+        },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

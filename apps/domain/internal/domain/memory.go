@@ -32,6 +32,33 @@ func (m *MemoryStore) CreateRequestWithEvent(_ context.Context, request Request,
 	return nil
 }
 
+func (m *MemoryStore) GetRequest(_ context.Context, id string) (Request, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.failWith != nil {
+		return Request{}, m.failWith
+	}
+	request, exists := m.requests[id]
+	if !exists {
+		return Request{}, ErrRequestNotFound
+	}
+	return request, nil
+}
+
+func (m *MemoryStore) UpdateRequestStatusWithEvent(_ context.Context, request Request, event Event) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.failWith != nil {
+		return m.failWith
+	}
+	if _, exists := m.requests[request.ID]; !exists {
+		return ErrRequestNotFound
+	}
+	m.requests[request.ID] = request
+	m.events = append(m.events, event)
+	return nil
+}
+
 func (m *MemoryStore) Requests() []Request {
 	m.mu.Lock()
 	defer m.mu.Unlock()
