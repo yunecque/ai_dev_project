@@ -63,6 +63,7 @@ Go-проверки (M1+): `gofmt -l`, `go vet ./...`, `go test ./...` в соо
 ## Навигация
 
 - Состояние/handoff: `PROGRESS.md`
+- Схемы потоков (наглядно): `docs/sequences.md`
 - Baseline: `baseline.json`, `ARCHITECTURE_BASELINE.md`
 - Решения: `docs/adr/`
 - Roadmap: `docs/roadmap.md`
