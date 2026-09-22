@@ -23,10 +23,10 @@ rules:
   - id: go-tls-insecure-skip-verify
     languages: [go]
     severity: ERROR
-    message: TLS certificate verification is disabled (InsecureSkipVerify: true).
+    message: "TLS certificate verification is disabled (InsecureSkipVerify set to true)."
     metadata:
       category: security
-    pattern: tls.Config{..., InsecureSkipVerify: true, ...}
+    pattern: "tls.Config{..., InsecureSkipVerify: true, ...}"
 
   - id: python-requests-verify-false
     languages: [python]

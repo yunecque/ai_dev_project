@@ -141,7 +141,14 @@ jobs:
       - name: Install Semgrep
         run: pip install "semgrep>=1.177,<2"
       - name: Semgrep (local rules)
-        run: semgrep scan --config security/semgrep/rules.yaml --error --metrics=off apps control-plane
+        run: |
+          semgrep scan --config security/semgrep/rules.yaml --json --metrics=off apps control-plane > semgrep.json
+          if grep -q '"check_id"' semgrep.json; then
+            echo "Semgrep findings detected:"
+            cat semgrep.json
+            exit 1
+          fi
+          echo "semgrep: no findings"
 
   dependency-scan:
     runs-on: ubuntu-latest
