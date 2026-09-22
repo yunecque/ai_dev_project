@@ -152,13 +152,23 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
 
 ## 5. Открытые пункты / блокеры
 
-1. **M0 закоммичен и запушен.** Commit `2570c2e` на `main` (repo public, branch protection активна).
-2. **PR #1 (`chore/m0-progress`) разблокирован.** Политика review решена: **ADR-0012** —
-   solo-mode `required_approving_review_count=0` + `require_code_owner_reviews=false`; 15 required
-   checks, `enforce_admins`, PR-only и запрет force-push сохранены. Возврат к human review — при
-   появлении второго участника.
-3. **Создать `staging` environment** в GitHub с required reviewer (`release-approver`) — для M4/release gate.
-4. Опционально: `sudo apt install -y python3-venv` (не требуется, semgrep поставлен через `uv`).
+1. **M0–M2 закоммичены и запушены** на `main` (repo public, branch protection активна,
+   PR-only; merge — только при зелёных required checks).
+2. **Review-политика решена — ADR-0012:** solo-mode `required_approving_review_count=0` +
+   `require_code_owner_reviews=false`; 15 required checks, `enforce_admins`, PR-only и запрет
+   force-push сохранены. Возврат к human review — при появлении второго участника.
+3. **M3 требует внешних решений (не проверяется в PR).** Остаток M3 (TASK-0002…0005) упирается:
+   - **GHCR push** — «сырой» `build-image` только собирает образы; Cosign/attestations/Trivy
+     работают по image-ref, нужен push в GHCR (`packages: write`) на `main`.
+   - **Cosign keyless + artifact attestations** выполняются только на `push` в `main` (GitHub
+     OIDC) → PR CI их не прогоняет, проверка только постфактум на `main`.
+   - **`staging` environment с required reviewer** (пункт M0/M4): в solo-mode единственный
+     collaborator — `yunecque`, а GitHub запрещает само-approval environment-гейта → возможен
+     deadlock. Нужно решение по аналогии с ADR-0012 → **ADR-0013** (запланирован в TASK-0005).
+4. **Предлагаемый порядок остатка M3:** TASK-0002 `control-plane deploy_verify` (evidence-bundle
+   + прогон `pre-deployment` политики + `policy-decision`, PR-проверяемо) → TASK-0003 Syft/Trivy
+   на `main` → TASK-0004 Cosign/attestations на `main` → TASK-0005 environment + ADR-0013.
+5. Опционально: `sudo apt install -y python3-venv` (не требуется, semgrep поставлен через `uv`).
 
 ---
 
