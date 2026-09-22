@@ -15,7 +15,7 @@
 | Milestone | Статус | Примечание |
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
-| M1 Walking skeleton | ~10% | TASK-0001 (policy client) done |
+| M1 Walking skeleton | ~20% | TASK-0001, TASK-0002 done |
 | M2 Домен и lifecycle | не начат | |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
@@ -104,8 +104,10 @@ sdlc validate ../baseline.json           # OK
 ```
 apps/{gateway,domain,worker}/     # пусто — код M1
 control-plane/                    # Python 3.12: src/sdlc (artifacts, policy), tests
-contracts/schemas/                # 12 JSON Schema
-contracts/{openapi,proto,events}/ # пусто — M1
+contracts/schemas/                # 12 JSON Schema (workflow artifacts)
+contracts/openapi/requests.yaml   # REST-контракт golden path (OpenAPI 3.1)
+contracts/proto/domain/v1/domain.proto  # gRPC-контракт DomainService
+contracts/events/                 # request-created.schema.json + examples/
 policies/                         # пусто — M1
 security/{threat-models,tests}/   # пусто — M1
 infra/compose/                    # рабочий стек
@@ -148,8 +150,8 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
 
 - [x] **TASK-0001** — control-plane `policy`: OPA `pre-tool-call` клиент, fail-closed,
   `policy-decision` artifact + тесты (`src/sdlc/policy/`, `tests/test_policy.py`).
-- [ ] **TASK-0002** — `contracts/`: OpenAPI (`requests.yaml`), Protobuf (`domain/v1/domain.proto`),
-  event schema (`request-created.schema.json`).
+- [x] **TASK-0002** — `contracts/`: OpenAPI (`requests.yaml`), Protobuf (`domain/v1/domain.proto`),
+  event schema (`request-created.schema.json`) + `tests/test_contracts.py` (6 тестов).
 - [ ] **TASK-0003** — control-plane `runner`: ephemeral run, scoped capability token, `run_id`.
 - [ ] **TASK-0004** — control-plane `evidence`: compression layer + recovery handle; `trust` tiers.
 - [ ] **TASK-0005** — `apps/gateway` (Go): REST + OIDC validation + gRPC client.
