@@ -4,8 +4,8 @@
 продолжает отсюда, прочитав также `AGENTS.md` и `ARCHITECTURE_BASELINE.md`.
 
 - Обновлено: 2026-09-22
-- Текущий milestone: **M2 — Домен и lifecycle** (завершён)
-- Следующий: **M3 — Supply chain hardening**
+- Текущий milestone: **M3 — Supply chain hardening** (в работе)
+- Предыдущий: **M2 — Домен и lifecycle** (завершён)
 - Remote: https://github.com/yunecque/ai_dev_project (main, protected)
 - Наглядные схемы: `docs/sequences.md` (обновляется по мере прогресса)
 
@@ -18,7 +18,7 @@
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
 | M1 Walking skeleton | 100% | TASK-0001…0012 done; walking skeleton собран |
 | M2 Домен и lifecycle | 100% | TASK-0001…0006 done; feature `FEAT-0002` |
-| M3 Supply chain hardening | не начат | |
+| M3 Supply chain hardening | ~15% | TASK-0001 done; feature `FEAT-0003` |
 | M4 Staging + observability | не начат | |
 | M5 Portfolio | не начат | |
 
@@ -92,7 +92,7 @@ semgrep=1.177.0  uv=0.12.17
 cd control-plane
 python -m ruff check src tests      # All checks passed
 python -m mypy                      # Success: no issues found (17 files, strict)
-python -m pytest -q                 # 104 passed
+python -m pytest -q                 # 108 passed
 sdlc validate ../specs/examples/*.json   # все OK
 sdlc validate ../baseline.json           # OK
 
@@ -103,7 +103,7 @@ go test ./...                       # unit
 go test -tags=integration ./...     # integration (Postgres gated by TEST_DATABASE_URL)
 
 # policy (Rego)
-opa fmt --fail policies/ && opa test policies/   # 23/23
+opa fmt --fail policies/ && opa test policies/   # 35/35
 ```
 
 CI: 15 required checks; `build-image` собирает 4 образа, `dependency-scan` (Trivy),
@@ -126,7 +126,7 @@ contracts/schemas/                # 12 JSON Schema (workflow artifacts)
 contracts/openapi/requests.yaml   # REST-контракт golden path (OpenAPI 3.1)
 contracts/proto/domain/v1/domain.proto  # gRPC-контракт DomainService
 contracts/events/                 # request-created.schema.json + examples/
-policies/                         # pre_tool_call.rego + artifact_transition.rego (Rego v1) + tests/
+policies/                         # pre_tool_call + artifact_transition + pre_deployment (Rego v1) + tests/
 security/{threat-models,tests}/   # пусто — M1
 infra/compose/                    # рабочий стек
 infra/wsl/                        # bootstrap-toolchain.sh + README + lock
@@ -281,6 +281,23 @@ Feature `FEAT-0002`: operator workflow, полная authz-матрица, waive
   - worker e2e: `TestStatusChangedEventSmoke` — канонический пример через embedded JetStream,
     ровно один раз.
   - docs: `sequences.md` (M2 ✅, e2e, точки policy), `PROGRESS.md` (M2 закрыт).
+
+## 9. Как продолжить (M3 — Supply chain hardening)
+
+Feature `FEAT-0003`: Cosign keyless, SBOM/attestations, независимый `deploy-verify`.
+
+- [x] **TASK-0001** — OPA точка `pre-deployment` (independent release gate).
+  - `policies/pre_deployment.rego` (Rego v1): требует image, verified signature, present SBOM,
+    verified provenance, allow-решения `artifact-transition`+`pr-ci` и human-approval роли
+    `required_approver_role`; agent-approval не считается; fail-closed.
+  - `policies/tests/pre_deployment_test.rego` — 12 тестов (opa test: 35/35 всего).
+  - `control-plane/src/sdlc/policy/pre_deployment.py` + `test_pre_deployment.py` (4).
+  - Осталось: реальные `container-scan`/`sbom-generate`/`sign-and-attest` и verification
+    в `deploy-verify` (нужны GHCR push + environment reviewer).
+- [ ] **TASK-0002** — Syft SBOM + Trivy container-scan на main.
+- [ ] **TASK-0003** — Cosign keyless sign + artifact attestations на main.
+- [ ] **TASK-0004** — `deploy-verify`: реальные шаги (signature/SBOM/provenance/policy/approvals).
+- [ ] **TASK-0005** — docs/ADR + PROGRESS.
 
 ## 7. Полезные команды
 
