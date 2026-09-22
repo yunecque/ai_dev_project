@@ -72,6 +72,7 @@ func TestUpdateRequestStatusAppliesTransitionAndEmitsEvent(t *testing.T) {
 		RequestId:    created.GetRequest().GetId(),
 		NewStatus:    statusTriaged,
 		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
 	})
 	if err != nil {
 		t.Fatalf("UpdateRequestStatus: %v", err)
@@ -120,6 +121,7 @@ func TestUpdateRequestStatusRejectsUnknownStatus(t *testing.T) {
 		RequestId:    "11111111-1111-1111-1111-111111111111",
 		NewStatus:    "archived",
 		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
 	})
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("code = %v, want InvalidArgument", status.Code(err))
@@ -132,6 +134,7 @@ func TestUpdateRequestStatusUnknownRequestIsNotFound(t *testing.T) {
 		RequestId:    "99999999-9999-9999-9999-999999999999",
 		NewStatus:    statusTriaged,
 		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
 	})
 	if status.Code(err) != codes.NotFound {
 		t.Fatalf("code = %v, want NotFound", status.Code(err))
@@ -151,6 +154,7 @@ func TestUpdateRequestStatusRejectsIllegalTransition(t *testing.T) {
 		RequestId:    created.GetRequest().GetId(),
 		NewStatus:    statusResolved,
 		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
 	})
 	if status.Code(err) != codes.FailedPrecondition {
 		t.Fatalf("code = %v, want FailedPrecondition", status.Code(err))
@@ -170,6 +174,7 @@ func TestUpdateRequestStatusRejectsNoOpTransition(t *testing.T) {
 		RequestId:    created.GetRequest().GetId(),
 		NewStatus:    statusCreated,
 		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
 	})
 	if status.Code(err) != codes.FailedPrecondition {
 		t.Fatalf("code = %v, want FailedPrecondition", status.Code(err))
@@ -191,6 +196,7 @@ func TestUpdateRequestStatusTerminalStateRejectsFurtherChange(t *testing.T) {
 			RequestId:    id,
 			NewStatus:    next,
 			ActorSubject: "operator-1",
+			ActorRole:    roleOperator,
 		}); err != nil {
 			t.Fatalf("transition to %s: %v", next, err)
 		}
@@ -199,6 +205,7 @@ func TestUpdateRequestStatusTerminalStateRejectsFurtherChange(t *testing.T) {
 		RequestId:    id,
 		NewStatus:    statusCancelled,
 		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
 	})
 	if status.Code(err) != codes.FailedPrecondition {
 		t.Fatalf("code = %v, want FailedPrecondition", status.Code(err))
@@ -220,6 +227,7 @@ func TestUpdateRequestStatusStoreFailureIsInternal(t *testing.T) {
 		RequestId:    created.GetRequest().GetId(),
 		NewStatus:    statusTriaged,
 		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
 	})
 	if status.Code(err) != codes.Internal {
 		t.Fatalf("code = %v, want Internal", status.Code(err))

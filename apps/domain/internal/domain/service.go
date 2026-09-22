@@ -27,6 +27,9 @@ const (
 
 	eventTypeRequestCreated       = "request-created"
 	eventTypeRequestStatusChanged = "request-status-changed"
+
+	roleUser     = "user"
+	roleOperator = "operator"
 )
 
 // ErrRequestNotFound is returned by a Store when the request id is unknown.
@@ -149,8 +152,12 @@ func (s *Service) UpdateRequestStatus(
 	if requestID == "" {
 		return nil, status.Error(codes.InvalidArgument, "request_id is required")
 	}
-	if strings.TrimSpace(in.GetActorSubject()) == "" {
+	actor := strings.TrimSpace(in.GetActorSubject())
+	if actor == "" {
 		return nil, status.Error(codes.InvalidArgument, "actor subject is required")
+	}
+	if strings.TrimSpace(in.GetActorRole()) != roleOperator {
+		return nil, status.Error(codes.PermissionDenied, "operator role required")
 	}
 	newStatus := strings.TrimSpace(in.GetNewStatus())
 	if _, known := transitions[newStatus]; !known {
@@ -194,12 +201,20 @@ func (s *Service) GetRequest(
 	if requestID == "" {
 		return nil, status.Error(codes.InvalidArgument, "request_id is required")
 	}
+	actor := strings.TrimSpace(in.GetActorSubject())
+	if actor == "" {
+		return nil, status.Error(codes.InvalidArgument, "actor subject is required")
+	}
 	request, err := s.store.GetRequest(ctx, requestID)
 	if errors.Is(err, ErrRequestNotFound) {
 		return nil, status.Error(codes.NotFound, "request not found")
 	}
 	if err != nil {
 		return nil, status.Error(codes.Internal, "failed to load request")
+	}
+	if strings.TrimSpace(in.GetActorRole()) != roleOperator && request.Subject != actor {
+		// Return NotFound (not PermissionDenied) to avoid leaking request existence (CTRL-0001).
+		return nil, status.Error(codes.NotFound, "request not found")
 	}
 	return &domainv1.GetRequestResponse{Request: requestProto(request)}, nil
 }
@@ -214,6 +229,15 @@ func (s *Service) ListRequests(
 			return nil, status.Error(codes.InvalidArgument, "unknown status filter")
 		}
 	}
+	actor := strings.TrimSpace(in.GetActorSubject())
+	if actor == "" {
+		return nil, status.Error(codes.InvalidArgument, "actor subject is required")
+	}
+	subjectFilter := strings.TrimSpace(in.GetSubject())
+	if strings.TrimSpace(in.GetActorRole()) != roleOperator {
+		// Non-operators only ever see their own requests; ignore any subject filter.
+		subjectFilter = actor
+	}
 	limit := int(in.GetLimit())
 	if limit <= 0 {
 		limit = defaultListLimit
@@ -224,7 +248,7 @@ func (s *Service) ListRequests(
 
 	requests, err := s.store.ListRequests(ctx, ListFilter{
 		Status:  statusFilter,
-		Subject: strings.TrimSpace(in.GetSubject()),
+		Subject: subjectFilter,
 		Limit:   limit,
 	})
 	if err != nil {

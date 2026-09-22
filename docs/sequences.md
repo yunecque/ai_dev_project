@@ -83,7 +83,10 @@ sequenceDiagram
 ```
 
 Оператор также читает заявки: `GET /requests` (фильтры `status`/`subject`/`limit`) и
-`GET /requests/{id}` → gRPC `ListRequests` / `GetRequest`.
+`GET /requests/{id}` → gRPC `ListRequests` / `GetRequest`. Авторизация (SPEC-0001/TM-0001):
+gateway извлекает роль из OIDC-claim (`operator`/`user`) и передаёт verified context; domain
+ограничивает не-operator только своими заявками (чужой id → 404), менять статус может только
+operator (иначе 403/PermissionDenied).
 
 Реализация: `apps/domain/internal/domain/{service,memory,postgres}.go` (`CanTransition`, `ListFilter`),
 `apps/gateway/server.go` (REST → gRPC, маппинг кодов), `apps/publisher/internal/outbox/poller.go`

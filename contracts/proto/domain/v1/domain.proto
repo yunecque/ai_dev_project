@@ -32,6 +32,8 @@ message UpdateRequestStatusRequest {
   string new_status = 2;
   // Verified identity context forwarded by the gateway (subject from OIDC token).
   string actor_subject = 3;
+  // Verified role of the actor ("operator" or "user"); status changes require operator.
+  string actor_role = 4;
 }
 
 message UpdateRequestStatusResponse {
@@ -40,6 +42,9 @@ message UpdateRequestStatusResponse {
 
 message GetRequestRequest {
   string request_id = 1;
+  // Verified identity context; a non-operator may only read its own requests.
+  string actor_subject = 2;
+  string actor_role = 3;
 }
 
 message GetRequestResponse {
@@ -49,10 +54,13 @@ message GetRequestResponse {
 message ListRequestsRequest {
   // Optional lifecycle status filter; empty means no filter.
   string status = 1;
-  // Optional owning subject filter; empty means no filter.
+  // Optional owning subject filter; ignored for non-operators (scoped to the actor).
   string subject = 2;
   // Optional maximum number of results; the server applies a default and a cap.
   int32 limit = 3;
+  // Verified identity context; a non-operator only sees its own requests.
+  string actor_subject = 4;
+  string actor_role = 5;
 }
 
 message ListRequestsResponse {

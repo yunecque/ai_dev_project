@@ -17,7 +17,7 @@
 |---|---|---|
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
 | M1 Walking skeleton | 100% | TASK-0001…0012 done; walking skeleton собран |
-| M2 Домен и lifecycle | ~35% | TASK-0001/0002 done; feature `FEAT-0002` |
+| M2 Домен и lifecycle | ~55% | TASK-0001…0003 done; feature `FEAT-0002` |
 | M3 Supply chain hardening | не начат | |
 | M4 Staging + observability | не начат | |
 | M5 Portfolio | не начат | |
@@ -245,7 +245,16 @@ Feature `FEAT-0002`: operator workflow, полная authz-матрица, waive
     (`NotFound→404`, `FailedPrecondition→409`, `InvalidArgument→400`, иначе 502).
   - [x] OpenAPI 1.1.0: paths + `RequestStatus`/`UpdateRequestStatus`/`RequestList`; контракт-тесты.
   - [x] тесты: domain query (8), gateway (11), Postgres list (integration), +2 contract (77 всего).
-- [ ] **TASK-0003** — полная authz-матрица (роли requester/operator/admin).
+- [x] **TASK-0003** — полная authz-матрица (user/operator, owner-check).
+  - Строго по `SPEC-0001`/`TM-0001`: два актёра — **user** (владелец) и **operator**; `admin` нет,
+    OPA для runtime REST не вводится (ADR-0004 точки — только platform).
+  - gateway: `tokenVerifier` возвращает `identity{subject, roles}` (Keycloak `realm_access.roles`),
+    `roleOf` сводит к user/operator; PATCH требует operator (иначе 403); actor context
+    (subject+role) уходит в domain.
+  - domain: `GetRequest` — чужой id у не-operator → **404** (без утечки существования, CTRL-0001);
+    `ListRequests` — не-operator видит только свои; `UpdateRequestStatus` — только operator
+    (`PermissionDenied`); отсутствие identity context → `InvalidArgument` (CTRL-0002).
+  - тесты: domain authz (11), gateway (14), proto/OpenAPI 403; `authorization_test.go` обновлён.
 - [ ] **TASK-0004** — waiver-механика (валидация, истечение, запрет для агента).
 - [ ] **TASK-0005** — OPA точка `artifact-transition`.
 - [ ] **TASK-0006** — e2e operator-flow, обновление `docs/sequences.md` и `PROGRESS.md`.

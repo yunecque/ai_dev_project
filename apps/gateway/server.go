@@ -19,6 +19,9 @@ const (
 	maxDescriptionLen = 4000
 	maxBodyBytes      = 64 * 1024
 	maxListLimit      = 200
+
+	roleUser     = "user"
+	roleOperator = "operator"
 )
 
 // domainService is satisfied by the generated gRPC DomainService client.
@@ -82,7 +85,7 @@ func toRequestResponse(request *domainv1.Request) requestResponse {
 }
 
 func (s *apiServer) handleCreateRequest(w http.ResponseWriter, r *http.Request) {
-	subject, err := s.bearerSubject(r)
+	caller, err := s.bearerIdentity(r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "unauthenticated", err.Error())
 		return
@@ -103,7 +106,7 @@ func (s *apiServer) handleCreateRequest(w http.ResponseWriter, r *http.Request) 
 	response, err := s.domain.CreateRequest(r.Context(), &domainv1.CreateRequestRequest{
 		Title:       payload.Title,
 		Description: payload.Description,
-		Subject:     subject,
+		Subject:     caller.Subject,
 	})
 	if err != nil {
 		writeError(w, http.StatusBadGateway, "domain_unavailable", err.Error())
@@ -114,7 +117,8 @@ func (s *apiServer) handleCreateRequest(w http.ResponseWriter, r *http.Request) 
 }
 
 func (s *apiServer) handleListRequests(w http.ResponseWriter, r *http.Request) {
-	if _, err := s.bearerSubject(r); err != nil {
+	caller, err := s.bearerIdentity(r)
+	if err != nil {
 		writeError(w, http.StatusUnauthorized, "unauthenticated", err.Error())
 		return
 	}
@@ -131,9 +135,11 @@ func (s *apiServer) handleListRequests(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response, err := s.domain.ListRequests(r.Context(), &domainv1.ListRequestsRequest{
-		Status:  strings.TrimSpace(query.Get("status")),
-		Subject: strings.TrimSpace(query.Get("subject")),
-		Limit:   int32(limit),
+		Status:       strings.TrimSpace(query.Get("status")),
+		Subject:      strings.TrimSpace(query.Get("subject")),
+		Limit:        int32(limit),
+		ActorSubject: caller.Subject,
+		ActorRole:    roleOf(caller),
 	})
 	if err != nil {
 		writeDomainError(w, err)
@@ -148,13 +154,16 @@ func (s *apiServer) handleListRequests(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *apiServer) handleGetRequest(w http.ResponseWriter, r *http.Request) {
-	if _, err := s.bearerSubject(r); err != nil {
+	caller, err := s.bearerIdentity(r)
+	if err != nil {
 		writeError(w, http.StatusUnauthorized, "unauthenticated", err.Error())
 		return
 	}
 
 	response, err := s.domain.GetRequest(r.Context(), &domainv1.GetRequestRequest{
-		RequestId: r.PathValue("id"),
+		RequestId:    r.PathValue("id"),
+		ActorSubject: caller.Subject,
+		ActorRole:    roleOf(caller),
 	})
 	if err != nil {
 		writeDomainError(w, err)
@@ -164,9 +173,13 @@ func (s *apiServer) handleGetRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *apiServer) handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
-	subject, err := s.bearerSubject(r)
+	caller, err := s.bearerIdentity(r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "unauthenticated", err.Error())
+		return
+	}
+	if roleOf(caller) != roleOperator {
+		writeError(w, http.StatusForbidden, "forbidden", "operator role required")
 		return
 	}
 
@@ -185,7 +198,8 @@ func (s *apiServer) handleUpdateStatus(w http.ResponseWriter, r *http.Request) {
 	response, err := s.domain.UpdateRequestStatus(r.Context(), &domainv1.UpdateRequestStatusRequest{
 		RequestId:    r.PathValue("id"),
 		NewStatus:    strings.TrimSpace(payload.Status),
-		ActorSubject: subject,
+		ActorSubject: caller.Subject,
+		ActorRole:    roleOf(caller),
 	})
 	if err != nil {
 		writeDomainError(w, err)
@@ -201,6 +215,8 @@ func writeDomainError(w http.ResponseWriter, err error) {
 		writeError(w, http.StatusNotFound, "not_found", "request not found")
 	case codes.InvalidArgument:
 		writeError(w, http.StatusBadRequest, "invalid_input", err.Error())
+	case codes.PermissionDenied:
+		writeError(w, http.StatusForbidden, "forbidden", err.Error())
 	case codes.FailedPrecondition:
 		writeError(w, http.StatusConflict, "illegal_transition", err.Error())
 	default:
@@ -208,15 +224,25 @@ func writeDomainError(w http.ResponseWriter, err error) {
 	}
 }
 
-func (s *apiServer) bearerSubject(r *http.Request) (string, error) {
+// roleOf collapses the verified role claims to the two actors defined by SPEC-0001.
+func roleOf(caller identity) string {
+	for _, role := range caller.Roles {
+		if role == roleOperator {
+			return roleOperator
+		}
+	}
+	return roleUser
+}
+
+func (s *apiServer) bearerIdentity(r *http.Request) (identity, error) {
 	header := r.Header.Get("Authorization")
 	const prefix = "Bearer "
 	if !strings.HasPrefix(header, prefix) {
-		return "", errors.New("missing bearer token")
+		return identity{}, errors.New("missing bearer token")
 	}
 	raw := strings.TrimSpace(strings.TrimPrefix(header, prefix))
 	if raw == "" {
-		return "", errors.New("missing bearer token")
+		return identity{}, errors.New("missing bearer token")
 	}
 	return s.verifier.Verify(r.Context(), raw)
 }

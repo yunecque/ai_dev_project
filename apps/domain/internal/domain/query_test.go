@@ -30,7 +30,9 @@ func TestGetRequestReturnsStoredRequest(t *testing.T) {
 	service := newTestService(store)
 
 	response, err := service.GetRequest(context.Background(), &domainv1.GetRequestRequest{
-		RequestId: "11111111-1111-1111-1111-111111111111",
+		RequestId:    "11111111-1111-1111-1111-111111111111",
+		ActorSubject: "user-1",
+		ActorRole:    roleUser,
 	})
 	if err != nil {
 		t.Fatalf("GetRequest: %v", err)
@@ -53,7 +55,11 @@ func TestGetRequestRequiresID(t *testing.T) {
 
 func TestGetRequestUnknownIsNotFound(t *testing.T) {
 	service := newTestService(NewMemoryStore())
-	_, err := service.GetRequest(context.Background(), &domainv1.GetRequestRequest{RequestId: "missing"})
+	_, err := service.GetRequest(context.Background(), &domainv1.GetRequestRequest{
+		RequestId:    "missing",
+		ActorSubject: "user-1",
+		ActorRole:    roleUser,
+	})
 	if status.Code(err) != codes.NotFound {
 		t.Fatalf("code = %v, want NotFound", status.Code(err))
 	}
@@ -65,7 +71,10 @@ func TestListRequestsReturnsAllNewestFirst(t *testing.T) {
 	seedRequest(t, store, "22222222-2222-2222-2222-222222222222", "user-2", statusTriaged)
 	service := newTestService(store)
 
-	response, err := service.ListRequests(context.Background(), &domainv1.ListRequestsRequest{})
+	response, err := service.ListRequests(context.Background(), &domainv1.ListRequestsRequest{
+		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
+	})
 	if err != nil {
 		t.Fatalf("ListRequests: %v", err)
 	}
@@ -81,7 +90,9 @@ func TestListRequestsFiltersByStatus(t *testing.T) {
 	service := newTestService(store)
 
 	response, err := service.ListRequests(context.Background(), &domainv1.ListRequestsRequest{
-		Status: statusTriaged,
+		Status:       statusTriaged,
+		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
 	})
 	if err != nil {
 		t.Fatalf("ListRequests: %v", err)
@@ -101,7 +112,9 @@ func TestListRequestsFiltersBySubject(t *testing.T) {
 	service := newTestService(store)
 
 	response, err := service.ListRequests(context.Background(), &domainv1.ListRequestsRequest{
-		Subject: "user-2",
+		Subject:      "user-2",
+		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
 	})
 	if err != nil {
 		t.Fatalf("ListRequests: %v", err)
@@ -113,7 +126,11 @@ func TestListRequestsFiltersBySubject(t *testing.T) {
 
 func TestListRequestsRejectsUnknownStatusFilter(t *testing.T) {
 	service := newTestService(NewMemoryStore())
-	_, err := service.ListRequests(context.Background(), &domainv1.ListRequestsRequest{Status: "archived"})
+	_, err := service.ListRequests(context.Background(), &domainv1.ListRequestsRequest{
+		Status:       "archived",
+		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
+	})
 	if status.Code(err) != codes.InvalidArgument {
 		t.Fatalf("code = %v, want InvalidArgument", status.Code(err))
 	}
@@ -124,7 +141,11 @@ func TestListRequestsCapsLimit(t *testing.T) {
 	seedRequest(t, store, "11111111-1111-1111-1111-111111111111", "user-1", statusCreated)
 	service := newTestService(store)
 
-	response, err := service.ListRequests(context.Background(), &domainv1.ListRequestsRequest{Limit: 10_000})
+	response, err := service.ListRequests(context.Background(), &domainv1.ListRequestsRequest{
+		Limit:        10_000,
+		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
+	})
 	if err != nil {
 		t.Fatalf("ListRequests: %v", err)
 	}
@@ -137,7 +158,10 @@ func TestListRequestsStoreFailureIsInternal(t *testing.T) {
 	store := NewMemoryStore()
 	store.failWith = errors.New("db down")
 	service := newTestService(store)
-	_, err := service.ListRequests(context.Background(), &domainv1.ListRequestsRequest{})
+	_, err := service.ListRequests(context.Background(), &domainv1.ListRequestsRequest{
+		ActorSubject: "operator-1",
+		ActorRole:    roleOperator,
+	})
 	if status.Code(err) != codes.Internal {
 		t.Fatalf("code = %v, want Internal", status.Code(err))
 	}
