@@ -153,7 +153,11 @@ jobs:
   dependency-scan:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "::warning::dependency-scan (Trivy) implemented in M3"
+      - uses: actions/checkout@v4
+      - name: Install Trivy
+        run: curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.74.0
+      - name: Trivy dependency scan (Go)
+        run: trivy fs --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --skip-dirs .git apps/go.mod
 
   integration-tests:
     runs-on: ubuntu-latest
@@ -211,10 +215,15 @@ jobs:
         run: opa test policies/ -v
 
   build-image:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - run: echo "::warning::build-image implemented in M1/M3"
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build service images
+        run: |
+          for service in gateway domain publisher worker; do
+            docker build -f "apps/${service}/Dockerfile" apps -t "sdlc/${service}:${GITHUB_SHA}"
+          done
 
   container-scan:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
