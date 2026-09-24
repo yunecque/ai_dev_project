@@ -115,6 +115,32 @@ plugin-хук `tool.execute.before`/`permission.ask` к OPA. Роли из сх�
   PR-only и запрета force-push. Возврат к human review — при появлении второго участника.
 - **Подтверждение минимального M1-стека** (Postgres + NATS + OPA, Keycloak опционально).
 
+## Portfolio: traceability и демонстрации
+
+- **Traceability chain** `idea → specification → threat-model → plan → task → review /
+  security-review` проверяется из канонических JSON-артефактов:
+  `cd control-plane && sdlc trace --feature FEAT-0001` (exit 1 при разрыве цепочки или висячей ссылке).
+- **Заблокированные атаки** — 4 демонстрации: `docs/security-demos.md`
+  (`pytest control-plane/tests/test_blocked_attacks.py`, `opa test policies/`).
+- **Ограничения MVP**: `docs/limitations.md`.
+
+## M6: Agent execution layer
+
+Платформа исполняет агентский конвейер `idea → specification → threat-model → plan → task →
+review` под управлением policy/evidence (ADR-0014; `docs/m6-agent-execution-layer.md`).
+
+- **Только через MCP.** `.opencode/` ограничивает агента (`permission`: `edit`/`bash`/сеть =
+  `deny`), единственная дверь — MCP-сервер `sdlc-platform` (`sdlc mcp`). Plugin `opa-guard.ts`
+  прогоняет `tool.execute.before`/`permission.ask` через OPA `pre-tool-call`.
+- **Allowlisted tools + scoped capability.** `control-plane/src/sdlc/{tools,runner}`: неизвестный
+  инструмент, отсутствие capability, недоступная policy или schema-нарушение — fail-closed.
+- **Role skills + LLM adapter.** `control-plane/src/sdlc/{llm,skills}`: промпт — trusted config,
+  выход LLM — untrusted data (schema-валидация; инъекции полей игнорируются); sensitive вне
+  контекста; `StubLLM` для детерминированных тестов.
+- **Оркестратор.** `control-plane/src/sdlc/pipeline`: каждый шаг фиксирует
+  `policy-decision`/`evidence-record`; финальный `sdlc trace` — COMPLETE.
+- **Проверки:** `pytest control-plane/tests/test_{tools,executor,skills,mcp,pipeline,opencode_config}.py`.
+
 ## Governance
 
 - Текущее состояние и handoff: [`PROGRESS.md`](PROGRESS.md).
@@ -122,6 +148,7 @@ plugin-хук `tool.execute.before`/`permission.ask` к OPA. Роли из сх�
 - Архитектурные решения: `docs/adr/`.
 - Roadmap и отложенный backlog: `docs/roadmap.md`.
 - Модель evidence: `docs/evidence-model.md`.
+- Презентация (HTML, офлайн, с глоссарием): `docs/presentation.html`.
 - Схемы последовательностей (наглядно, обновляются): `docs/sequences.md`.
 - Схемы workflow-артефактов: `contracts/schemas/`.
 - Git — единственный source of truth. Markdown генерируется из JSON-артефактов.

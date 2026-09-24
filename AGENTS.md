@@ -17,7 +17,7 @@
 ## Защищённые зоны (не менять без CODEOWNERS-ревью)
 
 `policies/`, `security/`, `infra/`, `.github/`, `contracts/`, `baseline.json`,
-`ARCHITECTURE_BASELINE.md`, `docs/adr/`, `docs/roadmap.md`, `specs/`.
+`ARCHITECTURE_BASELINE.md`, `docs/adr/`, `docs/roadmap.md`, `specs/`, `.opencode/`.
 
 Функциональный код агент меняет через PR в `apps/` (и `control-plane/`).
 

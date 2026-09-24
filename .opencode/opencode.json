@@ -1,0 +1,30 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "instructions": ["AGENTS.md"],
+  "mcp": {
+    "sdlc-platform": {
+      "type": "local",
+      "command": ["sdlc", "mcp"],
+      "enabled": true,
+      "environment": {
+        "OPA_URL": "http://localhost:8181"
+      }
+    }
+  },
+  "plugin": ["./plugin/opa-guard.ts"],
+  "permission": {
+    "edit": "deny",
+    "bash": "deny",
+    "webfetch": "deny",
+    "websearch": "deny",
+    "external_directory": { "*": "deny" },
+    "read": {
+      "*": "allow",
+      ".env": "deny",
+      ".env.*": "deny",
+      "secrets/**": "deny",
+      "**/*.key": "deny",
+      "**/*.pem": "deny"
+    }
+  }
+}

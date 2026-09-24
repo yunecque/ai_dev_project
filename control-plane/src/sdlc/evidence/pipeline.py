@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -38,6 +38,8 @@ def process_tool_output(
     sensitivity: str = "none",
     max_bytes: int = DEFAULT_MAX_BYTES,
     artifact_ref: str | None = None,
+    policy_decision_ref: str | None = None,
+    links: Sequence[Mapping[str, str]] | None = None,
 ) -> ToolOutputResult:
     """Store the byte-exact original and return a bounded, schema-valid evidence record."""
     if tier is TrustTier.SENSITIVE:
@@ -58,6 +60,8 @@ def process_tool_output(
         sensitivity=sensitivity,
         artifact_digest=digest,
         artifact_ref=artifact_ref if artifact_ref is not None else compression.recovery_handle,
+        policy_decision_ref=policy_decision_ref,
         compression=compression,
+        links=links,
     )
     return ToolOutputResult(record=record, context_text=compression.context_text, digest=digest)

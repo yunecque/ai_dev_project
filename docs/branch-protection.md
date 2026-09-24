@@ -41,12 +41,13 @@ GitHub — control plane MVP (ADR-0008). Настройки применяютс
 
 ## Environment `staging`
 
-- Required reviewers: **release-approver** (solo-mode: владелец, `solo_override=true` с обоснованием
-  в audit trail).
+- Required reviewers: **off** в solo-mode (ADR-0013); **release-approver** (1, security) при
+  появлении второго участника.
 - Wait timer: по необходимости.
-- Deployment branches: только `main`.
-- `deploy-verify` workflow проверяет signature/SBOM/provenance/policy/approvals **независимо**
-  от build job.
+- Deployment branches: только protected `main`.
+- `deploy-verify` (`workflow_dispatch`) проверяет signature/SBOM/provenance/policy/approvals
+  **независимо** от build job; OPA `pre-deployment` fail-closed. Гейт обеспечивается
+  обязательными независимыми проверками, а не environment-review (ADR-0013).
 
 ## Правила, которые нельзя отключить
 

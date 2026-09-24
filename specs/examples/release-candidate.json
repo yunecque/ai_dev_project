@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0.0",
+  "artifact_type": "release-candidate",
+  "id": "RC-0001",
+  "created_at": "2026-09-23T10:00:00Z",
+  "actor": { "type": "ci", "id": "github-actions", "role": "release-approver" },
+  "run_id": "RUN-release-0001",
+  "image": "ghcr.io/yunecque/ai_dev_project/domain:abc123",
+  "image_digest": "1111111111111111111111111111111111111111111111111111111111111111",
+  "signature": {
+    "verified": true,
+    "issuer": "https://token.actions.githubusercontent.com",
+    "identity": "repo:yunecque/ai_dev_project:ref:refs/heads/main"
+  },
+  "sbom": {
+    "present": true,
+    "digest": "2222222222222222222222222222222222222222222222222222222222222222",
+    "format": "spdx-json"
+  },
+  "provenance": {
+    "verified": true,
+    "builder": "github-actions",
+    "attestation_id": "attestation-0001"
+  },
+  "policy_decisions": [
+    { "point": "artifact-transition", "decision": "allow", "href": "docs/evidence/artifact-transition.json" },
+    { "point": "pr-ci", "decision": "allow", "href": "docs/evidence/pr-ci.json" }
+  ],
+  "required_approver_role": "release-approver",
+  "approvals": [
+    {
+      "role": "release-approver",
+      "actor": { "type": "human", "id": "yunecque", "role": "release-approver" }
+    }
+  ],
+  "links": [
+    { "rel": "commit", "href": "abc123" }
+  ]
+}

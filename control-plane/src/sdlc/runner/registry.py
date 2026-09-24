@@ -45,8 +45,12 @@ class RunRegistry:
         self._secret = secret
         self._runs: dict[str, Run] = {}
 
-    def start(self, actor: Mapping[str, Any]) -> Run:
-        run = Run(run_id=f"RUN-{uuid4().hex}", actor=dict(actor), created_at=int(time.time()))
+    def start(self, actor: Mapping[str, Any], run_id: str | None = None) -> Run:
+        run = Run(
+            run_id=run_id or f"RUN-{uuid4().hex}",
+            actor=dict(actor),
+            created_at=int(time.time()),
+        )
         self._runs[run.run_id] = run
         return run
 
