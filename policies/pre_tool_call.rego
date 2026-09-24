@@ -6,7 +6,11 @@ package sdlc.pre_tool_call
 # Input: {"tool": string, "path": string, "scope": string, "actor": {...}}
 # Output: {"allow": bool, "reason_codes": [string]}
 
-allowed_tools := {"read_file", "write_file", "list_files", "run_tests"}
+allowed_tools := {
+	"read_file", "write_file", "list_files", "run_tests",
+	"read_artifact", "write_artifact", "list_artifacts", "open_pr",
+	"skill.grill", "skill.grill-security", "skill.planner", "skill.task-writer", "skill.reviewer",
+}
 
 sensitive_markers := [".env", "secrets/", "credentials/", ".pem", ".key", "id_rsa", "id_ed25519"]
 

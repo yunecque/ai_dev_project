@@ -8,12 +8,20 @@ import (
 
 	"github.com/yunecque/ai_dev_project/apps/domain/internal/domain"
 	domainv1 "github.com/yunecque/ai_dev_project/apps/gen/domain/v1"
+	"github.com/yunecque/ai_dev_project/apps/internal/telemetry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
 
 func main() {
 	ctx := context.Background()
+
+	shutdown, err := telemetry.Setup(ctx, "domain")
+	if err != nil {
+		log.Fatalf("domain: telemetry: %v", err)
+	}
+	defer func() { _ = shutdown(context.Background()) }()
+
 	dsn := getenv("DATABASE_URL", "postgres://sdlc:sdlc-dev-password@localhost:5432/requests")
 	listenAddr := getenv("DOMAIN_LISTEN", ":9090")
 
@@ -28,7 +36,7 @@ func main() {
 		log.Fatalf("domain: listen: %v", err)
 	}
 
-	server := grpc.NewServer()
+	server := grpc.NewServer(telemetry.GRPCServerOption())
 	domainv1.RegisterDomainServiceServer(server, domain.NewService(store))
 	reflection.Register(server)
 

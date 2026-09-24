@@ -3,9 +3,10 @@
 Состояние реализации Secure Agentic SDLC. Самодостаточный handoff: новая сессия/человек
 продолжает отсюда, прочитав также `AGENTS.md` и `ARCHITECTURE_BASELINE.md`.
 
-- Обновлено: 2026-09-22
-- Текущий milestone: **M3 — Supply chain hardening** (в работе)
-- Предыдущий: **M2 — Домен и lifecycle** (завершён)
+- Обновлено: 2026-09-24
+- Текущий milestone: **M6 — Agent execution layer** (завершён в коде/конфигурации; MVP M0–M5 закрыт)
+- Предыдущий: **M5 — Portfolio** (завершён; MVP закрыт)
+- Следующий: backlog `docs/roadmap.md` (production, второй reviewer, `pr-ci`, контейнерная песочница)
 - Remote: https://github.com/yunecque/ai_dev_project (main, protected)
 - Наглядные схемы: `docs/sequences.md` (обновляется по мере прогресса)
 
@@ -18,9 +19,10 @@
 | M0 Фундамент | 100% | завершён; remote + branch protection применены |
 | M1 Walking skeleton | 100% | TASK-0001…0012 done; walking skeleton собран |
 | M2 Домен и lifecycle | 100% | TASK-0001…0006 done; feature `FEAT-0002` |
-| M3 Supply chain hardening | ~15% | TASK-0001 done; feature `FEAT-0003` |
-| M4 Staging + observability | не начат | |
-| M5 Portfolio | не начат | |
+| M3 Supply chain hardening | 100% | TASK-0001…0005 done; feature `FEAT-0003` |
+| M4 Staging + observability | 100% | TASK-0001…0006 done; feature `FEAT-0004` |
+| M5 Portfolio | 100% | TASK-0001…0003 done; feature `FEAT-0005` |
+| M6 Agent execution layer | 100% | TASK-0000…0006 done; feature `FEAT-0006` |
 
 ### M0 checklist
 
@@ -91,8 +93,8 @@ semgrep=1.177.0  uv=0.12.17
 # control-plane (Python)
 cd control-plane
 python -m ruff check src tests      # All checks passed
-python -m mypy                      # Success: no issues found (17 files, strict)
-python -m pytest -q                 # 108 passed
+python -m mypy                      # Success: no issues found (45 files, strict)
+python -m pytest -q                 # 189 passed
 sdlc validate ../specs/examples/*.json   # все OK
 sdlc validate ../baseline.json           # OK
 
@@ -103,7 +105,7 @@ go test ./...                       # unit
 go test -tags=integration ./...     # integration (Postgres gated by TEST_DATABASE_URL)
 
 # policy (Rego)
-opa fmt --fail policies/ && opa test policies/   # 35/35
+opa fmt --fail policies/ && opa test policies/   # 38/38
 ```
 
 CI: 15 required checks; `build-image` собирает 4 образа, `dependency-scan` (Trivy),
@@ -121,8 +123,9 @@ apps/domain/migrations/0001_init.sql  # requests + outbox
 apps/worker/migrations/0002_processed_events.sql  # идемпотентность consumer'а
 apps/go.mod                       # единый Go-модуль github.com/yunecque/ai_dev_project/apps
 apps/gen/domain/v1/               # сгенерированный из proto код (buf, local plugins)
-control-plane/                    # Python 3.12: src/sdlc (artifacts, policy, runner, evidence, waiver), tests
-contracts/schemas/                # 12 JSON Schema (workflow artifacts)
+control-plane/                    # Python 3.12: src/sdlc (artifacts, policy, runner, evidence, waiver, deploy_verify, traceability, tools, llm, skills, mcp, pipeline), tests
+.opencode/                        # M6: opencode.json (MCP+permission), plugin/opa-guard.ts, agent/*.md (role profiles)
+contracts/schemas/                # 14 JSON Schema (workflow artifacts)
 contracts/openapi/requests.yaml   # REST-контракт golden path (OpenAPI 3.1)
 contracts/proto/domain/v1/domain.proto  # gRPC-контракт DomainService
 contracts/events/                 # request-created.schema.json + examples/
@@ -131,7 +134,7 @@ security/{threat-models,tests}/   # пусто — M1
 infra/compose/                    # рабочий стек
 infra/wsl/                        # bootstrap-toolchain.sh + README + lock
 infra/github/                     # apply-branch-protection.ps1 + setup-remote.sh
-specs/examples/                   # 10 валидных примеров golden-path
+specs/examples/                   # 12 валидных примеров golden-path
 .github/workflows/                # ci.yml, deploy-verify.yml
 docs/{adr,roadmap.md,evidence-model.md,branch-protection.md}
 baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
@@ -152,22 +155,35 @@ baseline.json, ARCHITECTURE_BASELINE.md, AGENTS.md, README.md
 
 ## 5. Открытые пункты / блокеры
 
-1. **M0–M2 закоммичены и запушены** на `main` (repo public, branch protection активна,
-   PR-only; merge — только при зелёных required checks).
+1. **Состояние git (handoff).** На `main` **закоммичено** только до `6b18679` (M0–M2, M3
+   TASK-0001, документация M3). Всё, что ниже, лежит в **рабочем дереве без коммита** (новый
+   session видит файлы на диске):
+   - M3 TASK-0002…0005 (`deploy_verify/`, schemas `release-candidate`/`evidence-bundle`,
+     `deploy-verify.yml`, ADR-0013, `infra/github/apply-staging-environment.ps1`);
+   - M4 (`apps/internal/telemetry/`, observability-конфиги, `prometheus/rules`, dashboards,
+     `infra/staging/`, `test_{redaction,observability,alerts,staging}.py`);
+   - M5 (`sdlc/traceability.py` + CLI `trace`, `test_{traceability,blocked_attacks}.py`,
+     `docs/{security-demos,limitations}.md`, `docs/presentation.html`);
+   - M6 план (`docs/m6-agent-execution-layer.md`) и правки PROGRESS/README/sequences/ci.yml/go.mod.
+   Проверки на момент handoff: control-plane **150 pytest passed**, ruff/mypy чисто; Go
+   gofmt/vet/test зелёные; `sdlc validate` baseline+примеры OK; `sdlc trace FEAT-0001` COMPLETE.
 2. **Review-политика решена — ADR-0012:** solo-mode `required_approving_review_count=0` +
    `require_code_owner_reviews=false`; 15 required checks, `enforce_admins`, PR-only и запрет
    force-push сохранены. Возврат к human review — при появлении второго участника.
-3. **M3 требует внешних решений (не проверяется в PR).** Остаток M3 (TASK-0002…0005) упирается:
-   - **GHCR push** — «сырой» `build-image` только собирает образы; Cosign/attestations/Trivy
-     работают по image-ref, нужен push в GHCR (`packages: write`) на `main`.
-   - **Cosign keyless + artifact attestations** выполняются только на `push` в `main` (GitHub
-     OIDC) → PR CI их не прогоняет, проверка только постфактум на `main`.
-   - **`staging` environment с required reviewer** (пункт M0/M4): в solo-mode единственный
-     collaborator — `yunecque`, а GitHub запрещает само-approval environment-гейта → возможен
-     deadlock. Нужно решение по аналогии с ADR-0012 → **ADR-0013** (запланирован в TASK-0005).
-4. **Предлагаемый порядок остатка M3:** TASK-0002 `control-plane deploy_verify` (evidence-bundle
-   + прогон `pre-deployment` политики + `policy-decision`, PR-проверяемо) → TASK-0003 Syft/Trivy
-   на `main` → TASK-0004 Cosign/attestations на `main` → TASK-0005 environment + ADR-0013.
+3. **M3 закрыт (код + конфигурация).** Осталось только внешнее применение/проверка на `main`
+   (в PR не проверяется):
+   - **`staging` environment** — решено ADR-0013 (solo-mode без required reviewer); применить
+     `infra/github/apply-staging-environment.ps1`.
+   - Cosign keyless + artifact attestations (TASK-0004) и `deploy-verify` (TASK-0005) выполняются
+     только на `push`/`workflow_dispatch` в `main` (GitHub OIDC) → PR CI их не прогоняет,
+     проверка постфактум на `main`.
+   - GHCR push есть в `build-image` (`packages: write`, на main) — образы доступны
+     для scan/SBOM/sign (TASK-0003).
+4. **MVP (M0–M5) и M6 закрыты в коде/конфигурации.** Внешнее (постфактум на `main`/вручную):
+   применить `infra/github/apply-staging-environment.ps1`; релизные стадии M3
+   (sign/attest/deploy-verify) и live-прогон observability против живого стека (Docker Desktop не
+   запущен); живой e2e `opencode` через `sdlc mcp` против реального OPA. Дальше — backlog
+   `docs/roadmap.md` (production, второй reviewer, `pr-ci`, контейнерная песочница runner).
 5. Опционально: `sudo apt install -y python3-venv` (не требуется, semgrep поставлен через `uv`).
 
 ---
@@ -304,10 +320,185 @@ Feature `FEAT-0003`: Cosign keyless, SBOM/attestations, независимый `
   - `control-plane/src/sdlc/policy/pre_deployment.py` + `test_pre_deployment.py` (4).
   - Осталось: реальные `container-scan`/`sbom-generate`/`sign-and-attest` и verification
     в `deploy-verify` (нужны GHCR push + environment reviewer).
-- [ ] **TASK-0002** — Syft SBOM + Trivy container-scan на main.
-- [ ] **TASK-0003** — Cosign keyless sign + artifact attestations на main.
-- [ ] **TASK-0004** — `deploy-verify`: реальные шаги (signature/SBOM/provenance/policy/approvals).
-- [ ] **TASK-0005** — docs/ADR + PROGRESS.
+- [x] **TASK-0002** — control-plane `deploy_verify`: release candidate → evidence bundle → policy.
+  - Контракт: `contracts/schemas/release-candidate.schema.json`,
+    `contracts/schemas/evidence-bundle.schema.json` + примеры в `specs/examples/`.
+  - `control-plane/src/sdlc/deploy_verify/`: `candidate.py` (schema-валидация untrusted входа,
+    canonical JSON + SHA-256), `bundle.py` (контент-адресуемый evidence bundle:
+    `kind`/`ref`/`digest`, `bundle_digest`), `verify.py` (`verify_release` — bundle +
+    `pre-deployment` OPA + `policy-decision` со ссылкой на bundle).
+  - CLI `sdlc deploy-verify <candidate.json> [--opa-url|--output-dir|--now|...]`, exit 1 при deny.
+  - CI `policy-check`: self-test на реальной политике (OPA server + пример allow).
+  - Тесты `tests/test_deploy_verify.py` (11); всего 119 passed.
+- [x] **TASK-0003** — Syft SBOM + Trivy container-scan + GHCR push на main.
+  - `.github/workflows/ci.yml`: `build-image` логинится в GHCR (`packages: write`) и на
+    `push` в `main` публикует `ghcr.io/<owner>/<repo>/{gateway,domain,publisher,worker}:$GITHUB_SHA`
+    (теги в нижнем регистре); на PR — только сборка.
+  - `container-scan`: `needs: build-image`, на main логин в GHCR + `trivy image
+    --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1` по каждому образу.
+  - `sbom-generate`: `needs: build-image`, на main скачивает Syft v1.52.0 и генерирует
+    SPDX-JSON SBOM по каждому образу в artifact `sbom` (retention 30 дней).
+  - Все 15 job-имён сохранены (branch protection required checks не затронуты);
+    YAML парсится.
+- [x] **TASK-0004** — Cosign keyless sign + artifact attestations на main (GitHub OIDC).
+  - `sign-and-attest` (permissions: `packages: write`, `id-token: write`,
+    `attestations: write`): логин в GHCR, Cosign v3.1.3 через `sigstore/cosign-installer@v4.1.0`,
+    `cosign sign --yes` по каждому образу (keyless OIDC), затем `actions/attest@v4` —
+    SLSA build provenance и SBOM (SPDX-JSON из artifact `sbom`) для каждого образа,
+    `push-to-registry: true`.
+  - Digest каждого образа резолвится `docker buildx imagetools inspect` и сохраняется в
+    artifact `image-digests` (`image-digests.json`) — вход для `deploy-verify` (TASK-0005).
+  - Выполняется только на `push` в `main` (OIDC), в PR не проверяется — постфактум на `main`.
+- [x] **TASK-0005** — `deploy-verify.yml`: реальные шаги, `staging` environment, ADR-0013.
+  - `deploy-verify.yml` (workflow_dispatch, вход `image` + опц. `image_digest`): job'ы
+    `verify-signature` (`cosign verify` keyless, identity-regexp ci.yml@main), `verify-sbom`
+    (`cosign verify-attestation --type spdxjson`), `verify-provenance`
+    (`gh attestation verify oci://…`), `verify-policy-and-approvals` (`environment: staging`,
+    сборка release-candidate через `jq`, OPA `pre-deployment` сервер + `sdlc deploy-verify`,
+    artifact `deploy-evidence`). Проверки независимы от build/sign job.
+  - ADR-0013: solo-mode `staging` без required reviewer (иначе deadlock self-approval);
+    gate = обязательные независимые проверки + fail-closed policy; возврат к reviewer при
+    втором участнике. `docs/branch-protection.md` обновлён.
+  - `infra/github/apply-staging-environment.ps1` — создаёт environment `staging`
+    (protected branches = main, без reviewers).
+  - `workflow_dispatch`-гейт не проверяется в PR — запуск/проверка постфактум на `main`.
+
+## 10. Как продолжить (M4 — Staging + observability)
+
+Feature `FEAT-0004`: OTel-инструментирование, redaction, dashboards/alerts, mini PC staging.
+
+- [x] **TASK-0001** — OTel traces/metrics golden path + context propagation.
+  - `apps/internal/telemetry`: `Setup` (resource `service.name`, OTLP gRPC trace/metric exporters
+    только при `OTEL_EXPORTER_OTLP_ENDPOINT`, иначе no-op; W3C TraceContext+Baggage propagator),
+    `HTTPHandler` (otelhttp), `GRPCServerOption`/`GRPCClientOption` (otelgrpc stats handlers).
+  - gateway: HTTP-сервер обёрнут в `telemetry.HTTPHandler`, gRPC-клиент с `telemetry.GRPCClientOption`.
+    domain: gRPC-сервер с `telemetry.GRPCServerOption`; trace-context прокидывается gateway→domain.
+  - deps: `otel v1.46.0`, `otelhttp`/`otelgrpc v0.71.0`; `apps/go.mod`/`go.sum` обновлены.
+  - Тесты `apps/internal/telemetry/telemetry_test.go` (3): Setup без endpoint, HTTP server span,
+    gRPC trace propagation через bufconn. `gofmt`/`go vet`/`go test ./...` зелёные.
+- [ ] **TASK-0002** — redaction в Collector + тесты отсутствия sensitive-полей в телеметрии.
+- [x] **TASK-0002** — обязательная redaction телеметрии + guard-тесты.
+  - `infra/compose/otel-collector.yaml`: `transform/redact` теперь подключён во **все** сигналы
+    (traces/metrics/logs) и идёт до `batch`; metric-контекст (`datapoint`) добавлен. Redaction:
+    `authorization`/`cookie`/`set-cookie` атрибуты → `[REDACTED]`; тело лога —
+    secret/token/password/api-key → `$1=[REDACTED]`; email (PII) → `[REDACTED_EMAIL]`.
+  - Исправлен скрытый баг: значения statements — plain-скаляры YAML, поэтому `\\s`/`\\S` в
+    старом конфиге попадали в OTTL как двойной бэкслеш (redaction тела лога фактически не
+    работала). Теперь одинарные `\s`/`\S`/`\.`.
+  - `control-plane/tests/test_redaction.py` (4): redact во всех пайплайнах (и до batch), наличие
+    контекстов trace/metric/log, обязательные паттерны, поведенческий реплей `replace_pattern`
+    на sample-телеметрии (секреты/PII удалены, не-sensitive сохранён).
+  - CI `security-tests` включает `test_redaction.py`.
+- [ ] **TASK-0003** — Prometheus метрики + Grafana dashboards (provisioning).
+- [x] **TASK-0003** — Prometheus метрики + Grafana dashboards (provisioning).
+  - `infra/compose/otel-collector.yaml`: Prometheus exporter c
+    `resource_to_telemetry_conversion.enabled=true` → `service_name` становится меткой
+    (нужно для панелей по сервисам).
+  - `grafana/provisioning/datasources/datasources.yaml`: детерминированные `uid`
+    (`prometheus`/`loki`/`tempo`).
+  - `grafana/provisioning/dashboards/dashboards.yaml` (file-provider) +
+    `dashboards/golden-path.json`: панели — request rate, HTTP p95, 5xx ratio, gRPC rate,
+    `up` (datasource uid зафиксированы).
+  - `control-plane/tests/test_observability.py` (5): scrape otel-collector:8889, resource-conversion,
+    uids, dashboard provider, валидность dashboard (панели/targets/expr/datasource).
+  - Live-валидация конфига коллектора (`otelcol-contrib validate`) не выполнена — Docker Desktop
+    не запущен; проверено статически (YAML + guard-тесты).
+- [ ] **TASK-0004** — alert rules (SLO golden path).
+- [x] **TASK-0004** — Prometheus alert rules (SLO golden path).
+  - `infra/compose/prometheus/rules/golden-path.yml`: `GoldenPathServiceDown` (critical,
+    up{job="otel-collector"}==0, 5m), `GoldenPathHighErrorRate` (warning, 5xx ratio >5%, 10m),
+    `GoldenPathHighLatency` (warning, p95 >1s, 10m), `GoldenPathNoRequests` (info, 30m).
+  - `prometheus.yml`: `rule_files` → `/etc/prometheus/rules/*.yml`; compose монтирует
+    `./prometheus/rules`.
+  - `control-plane/tests/test_alerts.py` (4): rule_files подключены, mount есть, все алерты
+    well-formed (expr/for/severity/summary/description), обязательные алерты и severity.
+  - Доставка алертов требует Alertmanager (в локальный стек не входит) — Prometheus оценивает,
+    UI показывает firing.
+- [x] **TASK-0005** — mini PC staging (compose/systemd) + docs.
+  - `infra/staging/docker-compose.yml`: приложения из GHCR
+    (`${IMAGE_REGISTRY}/{gateway,domain,publisher,worker}:${IMAGE_TAG}`) + инфраструктура;
+    конфиги наблюдаемости переиспользуются из `infra/compose/` (единый источник).
+  - `migrate` (postgres:16-alpine, `restart: "no"`) применяет `0001_init.sql` +
+    `0002_processed_events.sql` идемпотентно; `domain`/`publisher`/`worker` ждут
+    `service_completed_successfully`.
+  - `restart: unless-stopped`, named volumes, наружу только 8081/3000/9090/3100/3200.
+  - `infra/staging/.env.example` (только CHANGE_ME), `deploy.sh`, `systemd/secure-agentic-sdlc.service`,
+    `README.md` (порядок релиза через `deploy-verify`, ADR-0013).
+  - `control-plane/tests/test_staging.py` (9): сервисы, pinned GHCR-образы, restart-политики,
+    migrations-gate, OTel env, переиспользование конфигов, systemd, отсутствие секретов.
+  - Реальное развёртывание на mini PC — внешнее (артефакты статически проверены).
+- [x] **TASK-0006** — e2e observability smoke + docs.
+  - `apps/internal/telemetry/telemetry_test.go`: `TestGoldenPathObservabilitySmoke` — HTTP-хендлер
+    (otelhttp) вызывает gRPC-бэкенд (otelgrpc) через bufconn; ровно один trace, server-спаны на
+    обоих хопах + client-спан, и значение `Authorization` не попадает в атрибуты спанов.
+  - `docs/sequences.md`: новый §6 «Observability pipeline (M4)» (диаграмма + refs), статусы
+    M3 ✅ / M4 ⏳, таблица milestone обновлена.
+  - `PROGRESS.md`: M4 закрыт.
+  - Прогон против живого стека (Collector/Tempo/Prometheus) — внешнее (Docker Desktop не запущен);
+    app-уровень e2e проверен `go test`.
+
+## 11. Как продолжить (M5 — Portfolio)
+
+Feature `FEAT-0005`: traceability, демонстрации заблокированных атак, ограничения.
+
+- [x] **TASK-0001** — traceability chain.
+  - `control-plane/src/sdlc/traceability.py`: `trace_feature` строит граф `links` (в обе стороны —
+    reviews/evidence ссылаются на цепочку), находит недостающие стадии (`CHAIN_ORDER`) и висячие
+    локальные `.json`-ссылки; `format_report`.
+  - CLI `sdlc trace --feature FEAT-0001 [--json] [--repo-root]`, exit 1 при неполной цепочке.
+  - `tests/test_traceability.py` (5): полная цепочка FEAT-0001, missing stage, dangling link, CLI.
+- [x] **TASK-0002** — 4 демонстрации заблокированных атак.
+  - `tests/test_blocked_attacks.py` (4): prompt-injection + sensitive exfiltration; подделка/повтор/
+    scope/истечение capability; запрет agent/CI approval и waiver; Critical/High never-waived +
+    просроченный waiver снова блокирует. `docs/security-demos.md` (attack → control → test/opa).
+- [x] **TASK-0003** — ограничения и README.
+  - `docs/limitations.md` (solo-mode, in-band не контроль, `pr-ci` не реализована, best-effort
+    redaction, Alertmanager, размещение агента, GitHub-зависимость, без K8s).
+  - README раздел «Portfolio: traceability и демонстрации»; `docs/sequences.md` — все milestone ✅.
+
+## 12. M6 — Agent execution layer (завершён)
+
+Feature `FEAT-0006`. Слой «агент, который проходит идею → фичу под управлением платформы».
+Основание — ADR-0014 (и ADR-0011), полный план — `docs/m6-agent-execution-layer.md`.
+
+- [x] **TASK-0000** — ADR-0014 «Agent execution layer» + пункт M6 в `docs/roadmap.md`
+  (+ backlog: контейнерная песочница). ADR-индекс обновлён.
+- [x] **TASK-0001** — tool registry + runner-executor.
+  - `src/sdlc/tools/`: `ToolRegistry`/`ToolSpec` (scope + inline JSON-схемы args/result),
+    `UnknownToolError`, `validate_instance`, `make_tool`.
+  - `src/sdlc/runner/executor.py`: `RunnerExecutor.execute` — OPA `pre-tool-call` → capability →
+    lookup → scope → args/result schema → handler; на каждый вызов `policy-decision` +
+    `evidence-record` (untrusted, `policy_decision_ref`); actor берётся из run, не от caller;
+    любой handler-сбой → `EXECUTION_FAILED` (fail-closed).
+  - Тесты `test_tools.py` (4), `test_executor.py` (6); 170 passed (было 150).
+- [x] **TASK-0002** — LLM adapter + skill `task-writer`.
+  - `src/sdlc/llm/`: `LLMAdapter` Protocol, `LLMRequest`/`LLMResponse`, `StubLLM` (fail-closed на
+    неизвестную роль).
+  - `src/sdlc/skills/`: `Skill` (prompt+contract), `build_context` (sensitive → ошибка),
+    `extract_json` (untracked-текст как data), `SkillRunner` (policy+capability+evidence);
+    `TaskWriter` собирает canonical `task`, инъекции LLM-полей игнорируются, статус `todo`.
+  - Тесты `test_skills.py` (8).
+- [x] **TASK-0003** — остальные role skills: `grill`→specification, `grill-security`→threat-model,
+  `planner`→plan, `reviewer`→review (`src/sdlc/skills/roles.py`, `build_default_registry`).
+  Тесты +5 (в `test_skills.py`).
+- [x] **TASK-0004** — MCP server (`src/sdlc/mcp/`): минимальный JSON-RPC 2.0 (`initialize`,
+  `tools/list`, `tools/call`), capability-auth, делегирование в executor, fail-closed
+  (bad capability → RPC error; deny → tool error), `InProcessClient`. Тесты `test_mcp.py` (7).
+- [x] **TASK-0005** — `.opencode/` интеграция (защищённая зона): `opencode.json` (MCP
+  `sdlc-platform`, `permission` deny для edit/bash/сети, read-guard sensitive), plugin
+  `plugin/opa-guard.ts` (`tool.execute.before`/`permission.ask` → OPA), 6 role profiles; плюс
+  builtin artifact-tools + CLI `sdlc mcp` (stdio). Тесты `test_opencode_config.py` (6).
+- [x] **TASK-0006** — pipeline orchestrator (`src/sdlc/pipeline/`): e2e `idea→…→review` на
+  stub-агенте, каждый шаг policy+capability+evidence, детерминированный `security-review`,
+  финальный `trace_feature` = COMPLETE. Тесты `test_pipeline.py` (3); docs обновлены.
+
+Итог: 189 pytest (ruff/mypy clean), opa test 38/38 (allowlist расширен M6-tools/skills),
+Go gofmt/vet/test зелёные. Внешнее (постфактум): живой e2e `opencode` против реального OPA
+(см. `docs/limitations.md`).
+
+Критерии приёмки: агент через MCP проводит срез `idea→task` с policy/evidence на каждом шаге;
+артефакты schema-valid; `sdlc trace --feature …` = COMPLETE; sensitive вне контекста; агент не
+утверждает артефакты/релизы; неизвестный tool / нет capability / policy недоступна — fail-closed.
 
 ## 7. Полезные команды
 

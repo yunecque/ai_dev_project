@@ -3,7 +3,7 @@
 Наглядные схемы того, как устроена платформа и как ведётся работа. **Обновляется по мере
 прогресса** — при изменении потока правь соответствующую диаграмму и раздел «Прогресс».
 
-Статус milestone: **M0 ✅ · M1 ✅ · M2 ✅ · M3 ⏳ · M4 · M5**
+Статус milestone: **M0 ✅ · M1 ✅ · M2 ✅ · M3 ✅ · M4 ✅ · M5 ✅ · M6 ✅**
 
 Источники: `README.md` (модель исполнения/контроля), `docs/adr/`, `PROGRESS.md`.
 
@@ -133,13 +133,48 @@ sequenceDiagram
 
 Реализация: `policies/{pre_tool_call,artifact_transition,pre_deployment}.rego`,
 `control-plane/src/sdlc/{policy,runner,evidence,trust,waiver}`.
-Тесты: `control-plane/tests/test_{policy,runner,evidence,negative_pipeline,waiver,artifact_transition,pre_deployment}.py`,
+Тесты: `control-plane/tests/test_{policy,runner,evidence,negative_pipeline,waiver,artifact_transition,pre_deployment,deploy_verify}.py`,
 `policies/tests/` (opa test). Из четырёх точек ADR-0004 реализованы `pre-tool-call`,
 `artifact-transition`, `pre-deployment`; `pr-ci` — остаётся.
 
 ---
 
-## 4. Разработка и CI (как агент меняет репозиторий)
+## 4. Независимый release gate (M3)
+
+Релиз-кандидат проверяется отдельно от build job: evidence собирается в контент-адресуемый
+bundle, решение принимает `pre-deployment` policy (fail-closed), результат фиксируется как
+`policy-decision`. Agent-approval не считается; нужен human `release-approver`.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CI as CI (deploy-verify)
+    participant DV as sdlc deploy-verify
+    participant O as OPA (pre_deployment)
+    participant Art as evidence bundle + policy-decision
+
+    CI->>DV: release-candidate.json (image, signature, sbom, provenance, decisions, approvals)
+    DV->>DV: schema-validate (untrusted) → canonical SHA-256
+    DV->>DV: build evidence-bundle (kind/ref/digest, bundle_digest)
+    DV->>O: POST /v1/data/sdlc/pre_deployment/decision
+    alt allow (signature + sbom + provenance + decisions + human approval)
+        O-->>DV: {allow: true}
+        DV->>Art: write bundle + decision (allow)
+        DV-->>CI: exit 0
+    else deny / OPA недоступен (fail-closed)
+        O-->>DV: {allow: false, reason_codes}
+        DV->>Art: write bundle + decision (deny)
+        DV-->>CI: exit 1 (release blocked)
+    end
+```
+
+Реализация: `control-plane/src/sdlc/deploy_verify/` (`candidate`, `bundle`, `verify`),
+`policies/pre_deployment.rego`, CLI `sdlc deploy-verify`. CI: стадия `policy-check` прогоняет
+self-test на реальной политике. Контракты: `contracts/schemas/{release-candidate,evidence-bundle}.schema.json`.
+
+---
+
+## 5. Разработка и CI (как агент меняет репозиторий)
 
 ```mermaid
 sequenceDiagram
@@ -165,16 +200,86 @@ sequenceDiagram
 
 ---
 
-## 5. Прогресс по milestone
+## 6. Observability pipeline (M4)
+
+Сервисы инструментированы OpenTelemetry (traces/metrics/logs) и экспортируют OTLP в Collector,
+который **обязательно** redacts secrets/tokens/PII перед выгрузкой (ADR-0010). Метрики идут в
+Prometheus (метка `service_name`), трейсы — в Tempo, логи — в Loki; SLO golden path под алертами.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant G as gateway (Go, otelhttp/otelgrpc)
+    participant D as domain (Go, otelgrpc)
+    participant C as OTel Collector
+    participant P as Prometheus
+    participant T as Tempo
+    participant L as Loki
+
+    G->>D: gRPC (traceparent injected, тот же trace)
+    D-->>G: response
+    G->>C: OTLP spans/metrics/logs
+    D->>C: OTLP spans/metrics/logs
+    C->>C: transform/redact: authorization/cookie → [REDACTED];<br/>password|secret|token|api_key → [REDACTED];<br/>email → [REDACTED_EMAIL]
+    C->>T: traces
+    C->>P: metrics (resource attrs → service_name)
+    C->>L: logs
+    P->>P: alert rules (GoldenPath{ServiceDown,HighErrorRate,HighLatency})
+```
+
+Реализация: `apps/internal/telemetry` (`Setup`, `HTTPHandler`, `GRPCServerOption`),
+`infra/compose/otel-collector.yaml` (redaction), `prometheus.yml` + `prometheus/rules/golden-path.yml`,
+`grafana/provisioning/{datasources,dashboards}`. Staging — `infra/staging/`.
+Guard/тесты: `control-plane/tests/test_{redaction,observability,alerts,staging}.py`,
+`apps/internal/telemetry/telemetry_test.go` (в т.ч. `TestGoldenPathObservabilitySmoke`).
+
+---
+
+## 7. Agent execution layer (M6)
+
+Платформа не только проверяет, но и **исполняет** конвейер (ADR-0014). Внешний агент `opencode`
+физически ограничен `.opencode/` (нет прямого shell/ФС/сети) и работает только через MCP-мост;
+каждый вызов проходит OPA `pre-tool-call` + scoped capability, каждый шаг порождает
+`policy-decision`/`evidence-record`.
+
+```mermaid
+flowchart LR
+    OC[opencode<br/>.opencode profiles] -->|JSON-RPC tools/call| MCP[MCPServer]
+    MCP -->|capability auth| EX[RunnerExecutor]
+    EX -->|pre-tool-call| OPA[(OPA)]
+    EX -->|capability check| CAP[RunRegistry]
+    EX -->|allowlisted tool| TOOLS[ToolRegistry<br/>read/write/list_artifact]
+    EX --> EV[policy-decision + evidence-record]
+    PIPE[Pipeline orchestrator] -->|skill runner| SK[role skills<br/>prompt + contract]
+    SK --> LLM[LLM adapter<br/>StubLLM]
+    LLM -->|untrusted JSON| VAL[JSON Schema validation]
+    VAL --> ART[ArtifactStore]
+    PIPE --> EX
+    PIPE --> TR[trace_feature = COMPLETE]
+    PLUG[.opencode plugin opa-guard] -->|tool.execute.before / permission.ask| OPA
+```
+
+Роли: `grill`→specification, `grill-security`→threat-model, `planner`→plan, `task-writer`→task,
+`reviewer`→review; `security-review` компилируется платформой детерминированно из threat-model.
+Sensitive не попадает в model context; LLM-output — untrusted data, инъекции полей игнорируются.
+
+Реализация: `control-plane/src/sdlc/{tools,runner/executor,llm,skills,mcp,pipeline}`,
+`.opencode/` (`opencode.json`, `plugin/opa-guard.ts`, `agent/*.md`). Guard/тесты:
+`control-plane/tests/test_{tools,executor,skills,mcp,pipeline,opencode_config}.py`.
+
+---
+
+## 8. Прогресс по milestone
 
 | Milestone | Статус | Диаграмма |
 |---|---|---|
 | M0 Фундамент | ✅ | — |
-| M1 Walking skeleton | ✅ | §1, §3, §4 |
+| M1 Walking skeleton | ✅ | §1, §3, §5 |
 | M2 Домен и lifecycle | ✅ | §2 |
-| M3 Supply chain hardening | ⏳ | §3 (pre-deployment) |
-| M4 Staging + observability | — | (otel pipeline) |
-| M5 Portfolio | — | (traceability, blocked attacks) |
+| M3 Supply chain hardening | ✅ | §3 (pre-deployment), §4 |
+| M4 Staging + observability | ✅ | §6 |
+| M5 Portfolio | ✅ | `docs/security-demos.md`, `sdlc trace` |
+| M6 Agent execution layer | ✅ | §7 |
 
 ### Как обновлять
 1. Меняя поток — правь соответствующую Mermaid-диаграмму.

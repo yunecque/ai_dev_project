@@ -45,6 +45,24 @@
 
 Fail-closed: отсутствие/ошибка policy ⇒ `deny`.
 
+## Release candidate и evidence bundle (M3)
+
+Перед staging релиз-кандидат описывается как `release-candidate`
+(`contracts/schemas/release-candidate.schema.json`): image, результат проверки
+signature/SBOM/provenance, предыдущие `policy-decision` (`artifact-transition`, `pr-ci`) и
+независимые human-approvals. Это **untrusted** вход — он только валидируется по схеме и
+никогда не исполняется как инструкция.
+
+`sdlc deploy-verify` (`control-plane/src/sdlc/deploy_verify/`):
+
+1. собирает evidence в контент-адресуемый `evidence-bundle` — каждая единица
+   (signature/SBOM/provenance/decision/approval) сводится к `kind`/`ref`/`digest`,
+   `bundle_digest` коммитит image, digest кандидата и упорядоченный список;
+2. прогоняет точку `pre-deployment` (fail-closed);
+3. порождает `policy-decision` и связывает его с bundle (`links` rel `evidence`).
+
+Exit code `1` при `deny`; CI-стадия `policy-check` прогоняет self-test на реальной политике.
+
 ## Хранение
 
 - `docs/evidence/` — сгенерированные evidence-файлы (в `.gitignore`, кроме манифестов).

@@ -37,3 +37,17 @@ test_denies_unknown_tool_and_sensitive_path_together if {
 test_allows_write_to_safe_path if {
 	decision.allow with input as {"tool": "write_file", "path": "apps/gateway/server.go", "scope": "workspace"}
 }
+
+test_allows_artifact_writer if {
+	decision.allow with input as {"tool": "write_artifact", "path": "specs/tasks/TASK-0001.json", "scope": "workspace"}
+}
+
+test_allows_task_writer_skill if {
+	decision.allow with input as {"tool": "skill.task-writer", "path": "", "scope": "skills"}
+}
+
+test_denies_unknown_skill if {
+	result := decision with input as {"tool": "skill.rogue", "path": "", "scope": "skills"}
+	result.allow == false
+	result.reason_codes[_] == "TOOL_NOT_IN_ALLOWLIST"
+}
