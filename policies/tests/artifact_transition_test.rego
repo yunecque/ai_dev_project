@@ -1,5 +1,7 @@
 package sdlc.artifact_transition
 
+import future.keywords.in
+
 human_author := {"type": "human", "id": "zarl3", "role": "author"}
 
 agent_actor := {"type": "agent", "id": "implementer", "role": "implementer"}

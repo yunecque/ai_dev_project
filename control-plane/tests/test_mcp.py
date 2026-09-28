@@ -19,6 +19,7 @@ import pytest
 
 from sdlc.evidence import EvidenceStore
 from sdlc.mcp import INVALID_PARAMS, METHOD_NOT_FOUND, InProcessClient, MCPError, MCPServer
+from sdlc.mcp.bootstrap import inject_capability
 from sdlc.policy import REASON_ALLOWED, REASON_POLICY_UNAVAILABLE, PolicyClient
 from sdlc.runner import REASON_UNKNOWN_TOOL, RunnerExecutor, RunRegistry
 from sdlc.tools import ToolRegistry, make_tool
@@ -174,3 +175,59 @@ def test_malformed_line_is_parse_error(tmp_path: Path) -> None:
     raw = server.handle_line("not json")
     decoded = json.loads(raw)
     assert decoded["error"]["code"] == -32700
+
+
+def test_bootstrap_injects_capability_for_known_tool() -> None:
+    capabilities = RunRegistry(secret=SECRET)
+    run_id = capabilities.start(ACTOR).run_id
+    line = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": "read_artifact", "arguments": {"path": "a"}},
+        }
+    )
+    bridged = json.loads(inject_capability(line, capabilities=capabilities, tools=_tools(), run_id=run_id))
+    params = bridged["params"]
+    assert params["run_id"] == run_id
+    assert params["scope"] == "workspace"
+    assert params["token"]
+    # The minted token must actually verify for the tool it was issued for.
+    assert capabilities.check(params["token"], tool="read_artifact", scope="workspace").valid is True
+
+
+def test_bootstrap_leaves_non_tools_call_untouched() -> None:
+    capabilities = RunRegistry(secret=SECRET)
+    run_id = capabilities.start(ACTOR).run_id
+    line = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}})
+    assert inject_capability(line, capabilities=capabilities, tools=_tools(), run_id=run_id) == line
+
+
+def test_bootstrap_leaves_unknown_tool_untouched() -> None:
+    capabilities = RunRegistry(secret=SECRET)
+    run_id = capabilities.start(ACTOR).run_id
+    line = json.dumps(
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "ghost", "arguments": {}}}
+    )
+    assert inject_capability(line, capabilities=capabilities, tools=_tools(), run_id=run_id) == line
+
+
+def test_bootstrap_does_not_override_explicit_capability() -> None:
+    capabilities = RunRegistry(secret=SECRET)
+    run_id = capabilities.start(ACTOR).run_id
+    line = json.dumps(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {
+                "name": "read_artifact",
+                "arguments": {"path": "a"},
+                "run_id": "R-1",
+                "token": "T-1",
+                "scope": "s",
+            },
+        }
+    )
+    assert inject_capability(line, capabilities=capabilities, tools=_tools(), run_id=run_id) == line

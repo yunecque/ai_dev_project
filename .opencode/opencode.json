@@ -4,14 +4,13 @@
   "mcp": {
     "sdlc-platform": {
       "type": "local",
-      "command": ["sdlc", "mcp"],
       "enabled": true,
+      "command": ["sdlc", "mcp"],
       "environment": {
         "OPA_URL": "http://localhost:8181"
       }
     }
   },
-  "plugin": ["./plugin/opa-guard.ts"],
   "permission": {
     "edit": "deny",
     "bash": "deny",
@@ -21,10 +20,11 @@
     "read": {
       "*": "allow",
       ".env": "deny",
-      ".env.*": "deny",
       "secrets/**": "deny",
+      "credentials/**": "deny",
       "**/*.key": "deny",
       "**/*.pem": "deny"
     }
-  }
+  },
+  "plugin": ["./plugin/opa-guard.ts"]
 }

@@ -48,6 +48,22 @@ LIST_RESULT = {
     "properties": {"artifact_ids": {"type": "array", "items": {"type": "string"}}},
 }
 
+FILE_WRITE_SCHEMA = {
+    "type": "object",
+    "required": ["path", "content"],
+    "properties": {"path": {"type": "string"}, "content": {"type": "string"}},
+    "additionalProperties": False,
+}
+FILE_WRITE_RESULT = {
+    "type": "object",
+    "required": ["path", "digest", "bytes"],
+    "properties": {
+        "path": {"type": "string"},
+        "digest": {"type": "string"},
+        "bytes": {"type": "integer"},
+    },
+}
+
 
 class ArtifactStore:
     """File-backed store of canonical JSON artifacts keyed by their artifact id."""
@@ -143,4 +159,55 @@ def register_artifact_tools(registry: ToolRegistry, store: ArtifactStore) -> Non
     )
 
 
-__all__ = ["ArtifactStore", "register_artifact_tools"]
+class WorkspaceWriter:
+    """Write UTF-8 files confined to a workspace root.
+
+    Path safety is enforced here (defence in depth): the path must be relative, must not
+    contain ``..``, and must resolve inside the root. Authorization (sensitive/protected
+    zones) is the OPA policy's job — the executor passes the path as the policy ``resource``.
+    """
+
+    def __init__(self, root: Path) -> None:
+        self._root = Path(root).resolve()
+
+    def write(self, relative_path: str, content: str) -> dict[str, Any]:
+        if not relative_path or relative_path.startswith(("/", "\\")):
+            raise ValueError("path must be relative to the workspace root")
+        if ".." in Path(relative_path).parts:
+            raise ValueError("path must not contain '..'")
+        target = (self._root / relative_path).resolve()
+        if target != self._root and self._root not in target.parents:
+            raise ValueError("path escapes the workspace root")
+        target.parent.mkdir(parents=True, exist_ok=True)
+        data = content.encode("utf-8")
+        target.write_bytes(data)
+        return {
+            "path": relative_path.replace("\\", "/"),
+            "digest": hashlib.sha256(data).hexdigest(),
+            "bytes": len(data),
+        }
+
+
+def _write_file_handler(writer: WorkspaceWriter) -> ToolHandler:
+    def handler(args: Mapping[str, Any]) -> Mapping[str, Any]:
+        return writer.write(str(args["path"]), str(args["content"]))
+
+    return handler
+
+
+def register_file_tools(registry: ToolRegistry, root: Path) -> None:
+    """Register the path-confined ``write_file`` tool rooted at ``root``."""
+    writer = WorkspaceWriter(root)
+    registry.register(
+        ToolSpec(
+            name="write_file",
+            scope="workspace",
+            description="Write a UTF-8 text file confined to the workspace root",
+            args_schema=FILE_WRITE_SCHEMA,
+            result_schema=FILE_WRITE_RESULT,
+            handler=_write_file_handler(writer),
+        )
+    )
+
+
+__all__ = ["ArtifactStore", "WorkspaceWriter", "register_artifact_tools", "register_file_tools"]

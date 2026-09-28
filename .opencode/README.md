@@ -38,3 +38,31 @@ capability и allow-решения OPA вызов отклоняется.
 ## Изменения конфигурации
 
 Config загружается один раз при старте opencode. После правок — перезапустить opencode.
+
+## Что может сломаться (прочитать до отладки)
+
+- **`permission.edit=deny` + `bash=deny` → агент read-only.** После перезапуска opencode
+  прямой `write`/`edit`/`bash` блокируется самой IDE, *до* плагина. Правки и проверки должны
+  идти через MCP `sdlc-platform` (`write_artifact`/`open_pr`/`run_tests`). Если MCP не запущен
+  (`sdlc mcp` не в PATH, нет capability-секрета), агент ничего не изменит — это by design, не баг.
+- **Плагин грузится один раз.** Правки `plugin/opa-guard.ts` не подхватываются «на лету»; нужен
+  полный перезапуск opencode, иначе работают старые правила.
+- **OPA недоступен → всё запрещено.** Плагин fail-closed: если контейнер OPA не слушает
+  `localhost:8181` (упал/не стартовал), каждый tool-call получает `POLICY_UNAVAILABLE` и deny.
+- **OPA не перечитывает политики.** Сервер запущен с `opa run ... /policies` без `--watch`;
+  после правок `.rego` нужен рестарт контейнера, иначе действует старая версия политики.
+- **Windows-слэши.** Маркеры `secrets/` и `credentials/` в политике используют прямой слэш.
+  Плагин нормализует путь (`\` → `/`), но **другие** вызовы (control-plane, MCP) могут слать
+  сырой Windows-путь, и тогда эти два маркера не сработают. Слэш-независимые маркеры
+  (`.env`, `.pem`, `.key`, `id_rsa`) работают всегда.
+- **`protected_paths` в политике.** Прямой `write_file` в `policies/`, `.github/`,
+  `contracts/`, `security/`, `infra/`, `specs/`, `.opencode/`, `docs/adr/`, `docs/roadmap.md`,
+  `baseline.json`, `ARCHITECTURE_BASELINE.md` запрещён. Для `specs/` используйте
+  `write_artifact`. Локальные правки защищённых файлов делайте внешним редактором, не агентом.
+- **Маппинг имён.** `toPolicyTool` переводит нативные тулзы opencode в словарь политики
+  (`read→read_file`, `write`/`edit`→`write_file`, `glob`/`grep`→`list_files`,
+  `skill→skill.<name>`). Тулзы без маппинга (`bash`, `task`, `todowrite`, `webfetch`,
+  `websearch`, `question`) всегда denied. При добавлении новых тулз обновите и плагин, и
+  `allowed_tools` в политике — иначе они будут молча запрещены.
+- **`skill.<name>`.** Имя берётся из `args.name`; если opencode положит его в другое поле,
+  получится `skill.` → deny.

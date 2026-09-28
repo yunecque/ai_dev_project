@@ -9,14 +9,23 @@ import sys
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import IO
 
 from .artifacts import find_repo_root, render_artifact, validate_artifact, validate_file
 from .deploy_verify import CandidateError, load_candidate, verify_release
 from .evidence import EvidenceStore
-from .mcp import MCPServer
+from .mcp import MCPServer, protocol
+from .mcp.bootstrap import inject_capability
 from .policy import PolicyClient
 from .runner import RunnerExecutor, RunRegistry
-from .tools import ArtifactStore, ToolRegistry, register_artifact_tools
+from .tools import (
+    ArtifactStore,
+    ToolRegistry,
+    register_artifact_tools,
+    register_file_tools,
+    register_test_tools,
+    register_vcs_tools,
+)
 from .traceability import format_report, trace_feature
 from .waiver import check_waiver, parse_timestamp
 
@@ -133,30 +142,90 @@ def _cmd_trace(args: argparse.Namespace) -> int:
     return 0 if report.complete else 1
 
 
+def _force_utf8(stream: IO[str]) -> None:
+    """Best-effort switch of a stdio stream to UTF-8.
+
+    On Windows the default pipe/console code page is the locale's single-byte encoding
+    (e.g. cp1251), so JSON read from the MCP client is mangled and non-ASCII bodies can
+    raise ``UnicodeDecodeError``/``UnicodeEncodeError``. StringIO (tests) has no
+    ``reconfigure``, so this is a no-op there.
+    """
+    reconfigure = getattr(stream, "reconfigure", None)
+    if reconfigure is None:
+        return
+    try:
+        reconfigure(encoding="utf-8", errors="replace")
+    except (ValueError, OSError):
+        pass
+
+
+def serve_stdio(
+    *,
+    server: MCPServer,
+    capabilities: RunRegistry,
+    tools: ToolRegistry,
+    run_id: str,
+    stdin: IO[str],
+    stdout: IO[str],
+) -> None:
+    """Serve JSON-RPC lines until EOF without ever dying on a single bad request.
+
+    The bridge is the single door for the agent: one malformed, oversized, or non-ASCII
+    request must not terminate the loop, otherwise the MCP client reports
+    ``Connection closed`` while the transport looked healthy. Failures are answered with a
+    JSON-RPC internal error so the tool call fails closed but the server stays up.
+    """
+    _force_utf8(stdin)
+    _force_utf8(stdout)
+    for line in stdin:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # The agent does not carry capability tokens; the trusted bridge mints a scoped
+        # token per call before the request reaches the policy/capability gate.
+        try:
+            bridged = inject_capability(
+                stripped, capabilities=capabilities, tools=tools, run_id=run_id
+            )
+            response = server.handle_line(bridged)
+        except Exception:  # noqa: BLE001 - the bridge must survive any request failure
+            response = json.dumps(protocol.error(None, protocol.INTERNAL_ERROR, "internal error"))
+        stdout.write(response + "\n")
+        stdout.flush()
+
+
 def _cmd_mcp(args: argparse.Namespace) -> int:
     secret_hex = os.environ.get("SDLC_MCP_SECRET")
-    if not secret_hex:
-        print("SDLC_MCP_SECRET is required (hex-encoded capability secret)", file=sys.stderr)
-        return 1
-    try:
-        secret = bytes.fromhex(secret_hex)
-    except ValueError:
-        print("SDLC_MCP_SECRET must be hex-encoded", file=sys.stderr)
-        return 1
-    capabilities = RunRegistry(secret=secret)
-    run_id = os.environ.get("SDLC_RUN_ID")
-    if run_id:
-        actor_raw = os.environ.get(
-            "SDLC_ACTOR_JSON", '{"type": "agent", "id": "opencode", "role": "implementer"}'
-        )
+    if secret_hex:
         try:
-            actor = json.loads(actor_raw)
-        except json.JSONDecodeError:
-            print("SDLC_ACTOR_JSON must be valid JSON", file=sys.stderr)
+            secret = bytes.fromhex(secret_hex)
+        except ValueError:
+            print("SDLC_MCP_SECRET must be hex-encoded", file=sys.stderr)
             return 1
-        capabilities.start(actor, run_id=run_id)
+    else:
+        # Local single-door mode: the bridge is the only issuer *and* verifier of tokens,
+        # so a per-process random secret is sufficient. This avoids persisting a secret
+        # while keeping tokens unforgeable outside this process. Set SDLC_MCP_SECRET only
+        # when an upstream orchestrator must verify the same tokens.
+        secret = os.urandom(32)
+    capabilities = RunRegistry(secret=secret)
+    actor_raw = os.environ.get(
+        "SDLC_ACTOR_JSON", '{"type": "agent", "id": "opencode", "role": "implementer"}'
+    )
+    try:
+        actor = json.loads(actor_raw)
+    except json.JSONDecodeError:
+        print("SDLC_ACTOR_JSON must be valid JSON", file=sys.stderr)
+        return 1
+    run = capabilities.start(actor, run_id=os.environ.get("SDLC_RUN_ID"))
     tools = ToolRegistry()
     register_artifact_tools(tools, ArtifactStore(Path(args.artifacts_dir)))
+    register_file_tools(tools, Path(args.root))
+    register_test_tools(tools, Path(args.root))
+    if os.environ.get("SDLC_GITHUB_TOKEN"):
+        # ``open_pr`` needs a panel-held GitHub token and repository slug; without a token the
+        # tool is simply absent (fail-closed) rather than half-wired.
+        register_vcs_tools(tools, Path(args.root))
     executor = RunnerExecutor(
         policy=PolicyClient(base_url=args.opa_url),
         capabilities=capabilities,
@@ -164,12 +233,14 @@ def _cmd_mcp(args: argparse.Namespace) -> int:
         evidence_store=EvidenceStore(Path(args.evidence_dir)),
     )
     server = MCPServer(executor=executor, tools=tools)
-    for line in sys.stdin:
-        stripped = line.strip()
-        if not stripped:
-            continue
-        sys.stdout.write(server.handle_line(stripped) + "\n")
-        sys.stdout.flush()
+    serve_stdio(
+        server=server,
+        capabilities=capabilities,
+        tools=tools,
+        run_id=run.run_id,
+        stdin=sys.stdin,
+        stdout=sys.stdout,
+    )
     return 0
 
 
@@ -216,6 +287,11 @@ def build_parser() -> argparse.ArgumentParser:
     mcp.add_argument("--opa-url", default="http://localhost:8181")
     mcp.add_argument("--artifacts-dir", default="specs/artifacts")
     mcp.add_argument("--evidence-dir", default="specs/evidence")
+    mcp.add_argument(
+        "--root",
+        default=".",
+        help="workspace root that write_file is confined to (default: cwd)",
+    )
     mcp.set_defaults(func=_cmd_mcp)
 
     return parser

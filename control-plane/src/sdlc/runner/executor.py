@@ -80,6 +80,17 @@ class RunnerExecutor:
             raise RunUnknownError(run_id)
         actor = run.actor
 
+        # The policy sees the target path(s) as its `resource`. MCP clients call tools with
+        # `arguments` only (no separate resource), so derive it from a conventional `path`
+        # argument (or a `paths` list) unless the caller passed one explicitly. Without this,
+        # protected-path and sensitive-path rules would never see the target and fail open on
+        # MCP calls.
+        resource = resource or str(args.get("path", "") or "")
+        if not resource:
+            paths = args.get("paths")
+            if isinstance(paths, (list, tuple)):
+                resource = ",".join(str(item) for item in paths)
+
         policy_result = self._policy.evaluate(
             point=POLICY_POINT,
             payload={"tool": tool, "path": resource, "scope": scope, "actor": actor},

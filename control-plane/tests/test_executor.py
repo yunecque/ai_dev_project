@@ -29,7 +29,7 @@ from sdlc.runner import (
     RunRegistry,
     issue_token,
 )
-from sdlc.tools import ToolRegistry, make_tool
+from sdlc.tools import ToolRegistry, make_tool, register_file_tools
 
 REPO_ROOT = find_repo_root()
 SECRET = b"executor-secret"
@@ -254,3 +254,67 @@ def test_invalid_result_is_denied(tmp_path: Path) -> None:
         )
     assert result.allowed is False
     assert result.reason == REASON_INVALID_RESULT
+
+
+@contextmanager
+def _opa_recorder(allow: bool) -> Iterator[tuple[str, list[dict[str, Any]]]]:
+    """OPA stub that records every request body so tests can inspect the policy input."""
+    payloads: list[dict[str, Any]] = []
+    body = json.dumps(
+        {"result": {"allow": allow, "reason_codes": [REASON_ALLOWED if allow else "DENIED"]}}
+    ).encode()
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            length = int(self.headers.get("Content-Length", "0"))
+            raw = self.rfile.read(length)
+            try:
+                payloads.append(json.loads(raw))
+            except json.JSONDecodeError:
+                payloads.append({})
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, fmt: str, *args: Any) -> None:
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_address[1]}", payloads
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=5)
+
+
+def test_policy_receives_file_path_as_resource(tmp_path: Path) -> None:
+    """The executor must forward args['path'] to OPA so protected/sensitive rules see it."""
+    capabilities = RunRegistry(secret=SECRET)
+    run = capabilities.start(ACTOR)
+    token = capabilities.issue(run.run_id, tool="write_file", scope="workspace")
+    tools = ToolRegistry()
+    register_file_tools(tools, tmp_path)
+    with _opa_recorder(allow=True) as (url, payloads):
+        executor = RunnerExecutor(
+            policy=PolicyClient(base_url=url),
+            capabilities=capabilities,
+            tools=tools,
+            evidence_store=EvidenceStore(tmp_path),
+        )
+        result = executor.execute(
+            run_id=run.run_id,
+            token=token,
+            tool="write_file",
+            args={"path": "apps/gateway/server.go", "content": "x"},
+            scope="workspace",
+            created_at=CREATED_AT,
+            decision_id="PD-0007",
+            evidence_id="EV-0007",
+        )
+    assert result.allowed is True
+    assert payloads and payloads[-1]["input"]["path"] == "apps/gateway/server.go"
+    assert (tmp_path / "apps" / "gateway" / "server.go").read_text(encoding="utf-8") == "x"
