@@ -1,0 +1,62 @@
+# SLO alerts for the request golden path (M4, TASK-0004; ADR-0010).
+# Metrics come from the OTel Collector Prometheus exporter (resources converted to labels).
+# Evaluated by Prometheus; delivery requires an Alertmanager (not part of the local stack yet).
+
+groups:
+  - name: golden-path
+    interval: 30s
+    rules:
+      - alert: GoldenPathServiceDown
+        expr: up{job="otel-collector"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          slo: availability
+        annotations:
+          summary: "OTel Collector target is down"
+          description: >-
+            Prometheus has failed to scrape the OTel Collector for 5m. The telemetry pipeline
+            (traces/metrics/logs) is broken and SLOs are not observable.
+          runbook: infra/compose/README.md
+
+      - alert: GoldenPathHighErrorRate
+        expr: >-
+          sum(rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+          / clamp_min(sum(rate(http_server_request_duration_seconds_count[5m])), 1) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          slo: availability
+        annotations:
+          summary: "Golden-path 5xx error ratio above 5%"
+          description: >-
+            Server error ratio over the last 5m exceeds the 5% SLO budget. Check gateway ->
+            domain gRPC failures and domain Postgres/outbox health.
+          runbook: infra/compose/README.md
+
+      - alert: GoldenPathHighLatency
+        expr: >-
+          histogram_quantile(0.95, sum by (le) (rate(http_server_request_duration_seconds_bucket[5m])))
+          > 1
+        for: 10m
+        labels:
+          severity: warning
+          slo: latency
+        annotations:
+          summary: "Golden-path p95 latency above 1s"
+          description: >-
+            p95 request latency exceeds the 1s SLO for 10m. Check upstream gRPC/DB latency.
+          runbook: infra/compose/README.md
+
+      - alert: GoldenPathNoRequests
+        expr: sum(rate(http_server_request_duration_seconds_count[5m])) == 0
+        for: 30m
+        labels:
+          severity: info
+          slo: availability
+        annotations:
+          summary: "Golden path has received no requests for 30m"
+          description: >-
+            No HTTP requests observed for 30m. Expected in idle development environments; a
+            signal of broken traffic/telemetry if sustained during a demo or load test.
+          runbook: infra/compose/README.md

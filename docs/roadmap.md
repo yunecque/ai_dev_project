@@ -13,6 +13,13 @@
 - **M4 — Staging + observability:** mini PC staging, OTel, dashboards, alerts, redaction.
 - **M5 — Portfolio:** traceability chain, 4 демонстрации заблокированных атак, ограничения.
 
+## M6 (вне MVP, запланирован)
+
+- **M6 — Agent execution layer:** runner-executor + tool registry (allowlist, scope, fail-closed),
+  LLM adapter (stub), role skills (`grill`/`grill-security`/`planner`/`task-writer`/`reviewer`),
+  MCP-мост, `.opencode/` интеграция, pipeline-оркестратор `idea → … → review`. Основание —
+  ADR-0014, ADR-0011; план — `docs/m6-agent-execution-layer.md`.
+
 ## Отложено (explicit backlog)
 
 | Пункт | Причина отсрочки | Условие перехода |
@@ -26,6 +33,7 @@
 | Автономный incident triage | риск без human-in-the-loop | зрелость policy + evidence |
 | Собственный web UI control plane | GitHub покрывает MVP | ограничения GitHub как control plane |
 | Provenance без GitHub | vendor lock-in | требование независимого CI |
+| Контейнерная песочница runner | M6 executor — in-process (слабее изоляции) | необходимость ограничения syscalls/egress |
 
 ## Правило изменений
 

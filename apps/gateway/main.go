@@ -8,6 +8,7 @@ import (
 	"time"
 
 	domainv1 "github.com/yunecque/ai_dev_project/apps/gen/domain/v1"
+	"github.com/yunecque/ai_dev_project/apps/internal/telemetry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -15,6 +16,12 @@ import (
 func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	shutdown, err := telemetry.Setup(context.Background(), "gateway")
+	if err != nil {
+		log.Fatalf("gateway: telemetry: %v", err)
+	}
+	defer func() { _ = shutdown(context.Background()) }()
 
 	issuer := os.Getenv("OIDC_ISSUER")
 	clientID := os.Getenv("OIDC_CLIENT_ID")
@@ -26,7 +33,10 @@ func main() {
 		log.Fatalf("gateway: oidc verifier: %v", err)
 	}
 
-	conn, err := grpc.NewClient(domainAddr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(domainAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		telemetry.GRPCClientOption(),
+	)
 	if err != nil {
 		log.Fatalf("gateway: domain client: %v", err)
 	}

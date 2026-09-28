@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://secure-agentic-sdlc.local/schemas/release-candidate.schema.json",
+  "title": "Release Candidate",
+  "description": "Input descriptor for the independent pre-deployment gate (ADR-0005, M3).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_type",
+    "id",
+    "created_at",
+    "actor",
+    "run_id",
+    "image",
+    "signature",
+    "sbom",
+    "provenance",
+    "policy_decisions",
+    "required_approver_role",
+    "approvals"
+  ],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0.0" },
+    "artifact_type": { "type": "string", "const": "release-candidate" },
+    "id": { "$ref": "common.schema.json#/$defs/id" },
+    "created_at": { "$ref": "common.schema.json#/$defs/isoDateTime" },
+    "actor": { "$ref": "common.schema.json#/$defs/actor" },
+    "run_id": { "$ref": "common.schema.json#/$defs/runId" },
+    "image": { "type": "string", "minLength": 1 },
+    "image_digest": { "$ref": "common.schema.json#/$defs/sha256" },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verified"],
+      "properties": {
+        "verified": { "type": "boolean" },
+        "issuer": { "type": "string" },
+        "identity": { "type": "string" }
+      }
+    },
+    "sbom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present"],
+      "properties": {
+        "present": { "type": "boolean" },
+        "digest": { "$ref": "common.schema.json#/$defs/sha256" },
+        "format": { "type": "string" }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verified"],
+      "properties": {
+        "verified": { "type": "boolean" },
+        "builder": { "type": "string" },
+        "attestation_id": { "type": "string" }
+      }
+    },
+    "policy_decisions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["point", "decision"],
+        "properties": {
+          "point": { "type": "string", "minLength": 1 },
+          "decision": { "type": "string", "enum": ["allow", "deny"] },
+          "href": { "type": "string" }
+        }
+      }
+    },
+    "required_approver_role": { "$ref": "common.schema.json#/$defs/actorRole" },
+    "approvals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "actor"],
+        "properties": {
+          "role": { "$ref": "common.schema.json#/$defs/actorRole" },
+          "actor": { "$ref": "common.schema.json#/$defs/actor" }
+        }
+      }
+    },
+    "links": { "type": "array", "items": { "$ref": "common.schema.json#/$defs/link" } }
+  }
+}

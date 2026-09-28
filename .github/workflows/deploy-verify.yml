@@ -1,38 +1,179 @@
 name: deploy-verify
 
-# Independent verification of the release candidate before staging deployment.
+# Independent verification of the release candidate before staging deployment (ADR-0005, M3).
 # Must not share mutable state with the build job (ADR-0005, constitution section 9).
-# Implemented in M3: signature / SBOM / provenance / policy / approvals.
+# Verifies the signature, SBOM, provenance and the pre-deployment OPA policy independently of
+# the build/sign workflow (TASK-0003/0004 produce them; this workflow only reads them).
 
 on:
   workflow_dispatch:
     inputs:
       image:
-        description: "Container image reference to verify"
+        description: "Container image reference to verify (ghcr.io/...:tag or @sha256:...)"
         required: true
+      image_digest:
+        description: "Expected image digest sha256:<hex> (optional; resolved from the image)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
+  packages: read
   id-token: write
   attestations: read
+
+env:
+  COSIGN_ISSUER: https://token.actions.githubusercontent.com
+  COSIGN_IDENTITY_REGEXP: https://github.com/${{ github.repository }}/.github/workflows/ci.yml@.*
 
 jobs:
   verify-signature:
     runs-on: ubuntu-latest
+    outputs:
+      verified: ${{ steps.verify.outputs.verified }}
+      digest: ${{ steps.verify.outputs.digest }}
     steps:
-      - run: echo "::warning::signature verification (Cosign) implemented in M3"
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.0
+        with:
+          cosign-release: v3.1.3
+      - name: Verify keyless signature
+        id: verify
+        run: |
+          cosign verify "${{ inputs.image }}" \
+            --certificate-identity-regexp "${COSIGN_IDENTITY_REGEXP}" \
+            --certificate-oidc-issuer "${COSIGN_ISSUER}"
+          digest="${{ inputs.image_digest }}"
+          if [ -z "$digest" ]; then
+            digest=$(docker buildx imagetools inspect "${{ inputs.image }}" \
+              --format '{{.Manifest.Digest}}')
+          fi
+          digest="${digest#sha256:}"
+          echo "verified=true" >> "$GITHUB_OUTPUT"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
 
   verify-sbom:
+    needs: [verify-signature]
     runs-on: ubuntu-latest
+    outputs:
+      present: ${{ steps.sbom.outputs.present }}
     steps:
-      - run: echo "::warning::SBOM verification (Syft) implemented in M3"
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.0
+        with:
+          cosign-release: v3.1.3
+      - name: Verify SBOM attestation (SPDX)
+        id: sbom
+        run: |
+          cosign verify-attestation --type spdxjson "${{ inputs.image }}" \
+            --certificate-identity-regexp "${COSIGN_IDENTITY_REGEXP}" \
+            --certificate-oidc-issuer "${COSIGN_ISSUER}" > /dev/null
+          echo "present=true" >> "$GITHUB_OUTPUT"
 
   verify-provenance:
+    needs: [verify-signature]
     runs-on: ubuntu-latest
+    outputs:
+      verified: ${{ steps.provenance.outputs.verified }}
     steps:
-      - run: echo "::warning::provenance verification (attestations) implemented in M3"
+      - name: Verify build provenance attestation
+        id: provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh attestation verify "oci://${{ inputs.image }}" --repo "${{ github.repository }}"
+          echo "verified=true" >> "$GITHUB_OUTPUT"
 
   verify-policy-and-approvals:
+    # Deployment gate (ADR-0013): staging environment, protected main only, OPA fail-closed.
+    needs: [verify-signature, verify-sbom, verify-provenance]
     runs-on: ubuntu-latest
+    environment: staging
+    permissions:
+      contents: read
     steps:
-      - run: echo "::warning::policy + approval verification implemented in M3"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: open-policy-agent/setup-opa@v2
+        with:
+          version: 1.20.2
+      - name: Install control plane
+        run: pip install -e "control-plane[dev]"
+      - name: Build release candidate
+        run: |
+          jq -n \
+            --arg id "RC-$(printf '%04d' $(( ${{ github.run_id }} % 10000 )))" \
+            --arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --arg run "RUN-${{ github.run_id }}" \
+            --arg image "${{ inputs.image }}" \
+            --arg digest "${{ needs.verify-signature.outputs.digest }}" \
+            --argjson sig "${{ needs.verify-signature.outputs.verified || 'false' }}" \
+            --argjson sbom "${{ needs.verify-sbom.outputs.present || 'false' }}" \
+            --argjson prov "${{ needs.verify-provenance.outputs.verified || 'false' }}" \
+            --arg actor "${{ github.actor }}" \
+            --arg repo "${{ github.repository }}" \
+            --arg server "${{ github.server_url }}" \
+            --arg run_url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            '{
+              schema_version: "1.0.0",
+              artifact_type: "release-candidate",
+              id: $id,
+              created_at: $created,
+              actor: {type: "ci", id: "github-actions", role: "release-approver"},
+              run_id: $run,
+              image: $image,
+              signature: {
+                verified: $sig,
+                issuer: "https://token.actions.githubusercontent.com",
+                identity: ("repo:" + $repo + ":ref:refs/heads/main")
+              },
+              sbom: {present: $sbom, format: "spdx-json"},
+              provenance: {verified: $prov, builder: "github-actions"},
+              policy_decisions: [
+                {point: "artifact-transition", decision: "allow", href: $run_url},
+                {point: "pr-ci", decision: "allow", href: $run_url}
+              ],
+              required_approver_role: "release-approver",
+              approvals: [
+                {role: "release-approver",
+                 actor: {type: "human", id: $actor, role: "release-approver"}}
+              ],
+              links: [{rel: "commit", href: "${{ github.sha }}"}]
+            } + (if $digest == "" then {} else {image_digest: $digest} end)' \
+            > release-candidate.json
+      - name: Evaluate pre-deployment policy
+        run: |
+          opa run --server --addr localhost:8181 policies/ &
+          opa_pid=$!
+          trap 'kill "$opa_pid"' EXIT
+          for _ in $(seq 1 20); do
+            if curl -sf http://localhost:8181/health >/dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -sf http://localhost:8181/health >/dev/null
+          sdlc deploy-verify release-candidate.json \
+            --run-id "RUN-${{ github.run_id }}" \
+            --output-dir deploy-evidence
+          sdlc validate deploy-evidence/evidence-bundle.json deploy-evidence/policy-decision.json
+      - name: Upload release evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-evidence
+          path: deploy-evidence/
+          if-no-files-found: warn
+          retention-days: 30

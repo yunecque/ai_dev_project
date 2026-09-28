@@ -1,5 +1,7 @@
 package sdlc.pre_tool_call
 
+import future.keywords.in
+
 test_allows_allowlisted_tool_on_safe_path if {
 	decision.allow with input as {"tool": "read_file", "path": "src/main.go", "scope": "workspace"}
 }
@@ -36,4 +38,42 @@ test_denies_unknown_tool_and_sensitive_path_together if {
 
 test_allows_write_to_safe_path if {
 	decision.allow with input as {"tool": "write_file", "path": "apps/gateway/server.go", "scope": "workspace"}
+}
+
+test_allows_artifact_writer if {
+	decision.allow with input as {"tool": "write_artifact", "path": "specs/tasks/TASK-0001.json", "scope": "workspace"}
+}
+
+test_allows_task_writer_skill if {
+	decision.allow with input as {"tool": "skill.task-writer", "path": "", "scope": "skills"}
+}
+
+test_denies_unknown_skill if {
+	result := decision with input as {"tool": "skill.rogue", "path": "", "scope": "skills"}
+	result.allow == false
+	result.reason_codes[_] == "TOOL_NOT_IN_ALLOWLIST"
+}
+
+# Protected zones: direct write_file is denied, but the sanctioned write_artifact
+# path to specs/ stays allowed.
+test_denies_write_to_protected_policies if {
+	result := decision with input as {"tool": "write_file", "path": "policies/pre_tool_call.rego", "scope": "workspace"}
+	result.allow == false
+	result.reason_codes[_] == "PROTECTED_PATH"
+}
+
+test_denies_write_to_protected_github if {
+	result := decision with input as {"tool": "write_file", "path": ".github/workflows/ci.yml", "scope": "workspace"}
+	result.allow == false
+	result.reason_codes[_] == "PROTECTED_PATH"
+}
+
+test_denies_write_to_protected_opencode if {
+	result := decision with input as {"tool": "write_file", "path": ".opencode/opencode.json", "scope": "workspace"}
+	result.allow == false
+	result.reason_codes[_] == "PROTECTED_PATH"
+}
+
+test_allows_artifact_writer_to_specs if {
+	decision.allow with input as {"tool": "write_artifact", "path": "specs/tasks/TASK-0002.json", "scope": "workspace"}
 }

@@ -1,5 +1,7 @@
 package sdlc.pre_deployment
 
+import future.keywords.in
+
 valid_input := {
 	"image": "ghcr.io/yunecque/ai_dev_project/domain:abc123",
 	"signature": {

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	domainv1 "github.com/yunecque/ai_dev_project/apps/gen/domain/v1"
+	"github.com/yunecque/ai_dev_project/apps/internal/telemetry"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -48,7 +49,7 @@ func (s *apiServer) routes() http.Handler {
 	mux.HandleFunc("POST /requests", s.handleCreateRequest)
 	mux.HandleFunc("GET /requests/{id}", s.handleGetRequest)
 	mux.HandleFunc("PATCH /requests/{id}/status", s.handleUpdateStatus)
-	return mux
+	return telemetry.HTTPHandler(mux, "gateway.http")
 }
 
 func (s *apiServer) handleHealth(w http.ResponseWriter, _ *http.Request) {

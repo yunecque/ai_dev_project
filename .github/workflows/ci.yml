@@ -198,7 +198,11 @@ jobs:
           pytest control-plane/tests/test_policy.py control-plane/tests/test_runner.py \
             control-plane/tests/test_evidence.py control-plane/tests/test_trust.py \
             control-plane/tests/test_waiver.py control-plane/tests/test_artifact_transition.py \
-            control-plane/tests/test_pre_deployment.py -q
+            control-plane/tests/test_pre_deployment.py control-plane/tests/test_deploy_verify.py \
+            control-plane/tests/test_redaction.py control-plane/tests/test_tools.py \
+            control-plane/tests/test_executor.py control-plane/tests/test_skills.py \
+            control-plane/tests/test_mcp.py control-plane/tests/test_pipeline.py \
+            control-plane/tests/test_opencode_config.py -q
       - name: Install Trivy
         run: curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.74.0
       - name: Trivy secret scan
@@ -215,37 +219,216 @@ jobs:
         run: opa fmt --fail policies/
       - name: Rego policy tests
         run: opa test policies/ -v
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install control plane
+        run: pip install -e "control-plane[dev]"
+      - name: Deploy verification self-test (real policy)
+        run: |
+          opa run --server --addr localhost:8181 policies/ &
+          opa_pid=$!
+          trap 'kill "$opa_pid"' EXIT
+          for _ in $(seq 1 20); do
+            if curl -sf http://localhost:8181/health >/dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -sf http://localhost:8181/health >/dev/null
+          sdlc deploy-verify specs/examples/release-candidate.json \
+            --run-id RUN-ci-deploy-verify \
+            --now 2026-09-23T10:05:00Z \
+            --output-dir /tmp/deploy-verify
+          sdlc validate /tmp/deploy-verify/evidence-bundle.json /tmp/deploy-verify/policy-decision.json
 
   build-image:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build service images
         run: |
+          image_base="ghcr.io/${GITHUB_REPOSITORY,,}"
           for service in gateway domain publisher worker; do
-            docker build -f "apps/${service}/Dockerfile" apps -t "sdlc/${service}:${GITHUB_SHA}"
+            docker build -f "apps/${service}/Dockerfile" apps \
+              -t "sdlc/${service}:${GITHUB_SHA}" \
+              -t "${image_base}/${service}:${GITHUB_SHA}"
+          done
+      - name: Push service images (main only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          image_base="ghcr.io/${GITHUB_REPOSITORY,,}"
+          for service in gateway domain publisher worker; do
+            docker push "${image_base}/${service}:${GITHUB_SHA}"
           done
 
   container-scan:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-image]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - run: echo "::warning::container-scan (Trivy) implemented in M3"
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Trivy
+        run: curl -sSfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.74.0
+      - name: Trivy image scan (HIGH,CRITICAL)
+        run: |
+          image_base="ghcr.io/${GITHUB_REPOSITORY,,}"
+          for service in gateway domain publisher worker; do
+            trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed \
+              --exit-code 1 "${image_base}/${service}:${GITHUB_SHA}"
+          done
 
   sbom-generate:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [build-image]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - run: echo "::warning::sbom-generate (Syft) implemented in M3"
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: anchore/sbom-action/download-syft@v0
+        with:
+          syft-version: v1.52.0
+      - name: Generate SBOMs (SPDX-JSON)
+        run: |
+          image_base="ghcr.io/${GITHUB_REPOSITORY,,}"
+          mkdir -p sbom
+          for service in gateway domain publisher worker; do
+            syft "${image_base}/${service}:${GITHUB_SHA}" \
+              -o spdx-json="sbom/${service}.spdx.json"
+          done
+      - name: Upload SBOM artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom/
+          retention-days: 30
 
   sign-and-attest:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [build-image, sbom-generate]
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
+      packages: write
+      id-token: write
       attestations: write
+    env:
+      IMAGE_BASE: ghcr.io/${{ github.repository }}
     steps:
-      - run: echo "::warning::sign-and-attest (Cosign keyless + attestations) implemented in M3"
+      - uses: actions/checkout@v4
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@v4.1.0
+        with:
+          cosign-release: v3.1.3
+      - name: Download SBOMs
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: sbom
+      - name: Sign images (keyless, GitHub OIDC)
+        run: |
+          for service in gateway domain publisher worker; do
+            cosign sign --yes "${IMAGE_BASE}/${service}:${GITHUB_SHA}"
+          done
+      - name: Resolve image digests
+        id: digests
+        run: |
+          manifest="{}"
+          for service in gateway domain publisher worker; do
+            digest=$(docker buildx imagetools inspect \
+              "${IMAGE_BASE}/${service}:${GITHUB_SHA}" --format '{{.Manifest.Digest}}')
+            echo "${service}=${digest}" >> "$GITHUB_OUTPUT"
+            manifest=$(echo "$manifest" | jq --arg s "$service" --arg d "$digest" \
+              '. + {($s): $d}')
+          done
+          echo "$manifest" > image-digests.json
+      - name: Upload image digests
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-digests
+          path: image-digests.json
+          retention-days: 30
+      - name: Attest provenance (gateway)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_BASE }}/gateway
+          subject-digest: ${{ steps.digests.outputs.gateway }}
+          push-to-registry: true
+      - name: Attest provenance (domain)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_BASE }}/domain
+          subject-digest: ${{ steps.digests.outputs.domain }}
+          push-to-registry: true
+      - name: Attest provenance (publisher)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_BASE }}/publisher
+          subject-digest: ${{ steps.digests.outputs.publisher }}
+          push-to-registry: true
+      - name: Attest provenance (worker)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_BASE }}/worker
+          subject-digest: ${{ steps.digests.outputs.worker }}
+          push-to-registry: true
+      - name: Attest SBOM (gateway)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_BASE }}/gateway
+          subject-digest: ${{ steps.digests.outputs.gateway }}
+          sbom-path: sbom/gateway.spdx.json
+          push-to-registry: true
+      - name: Attest SBOM (domain)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_BASE }}/domain
+          subject-digest: ${{ steps.digests.outputs.domain }}
+          sbom-path: sbom/domain.spdx.json
+          push-to-registry: true
+      - name: Attest SBOM (publisher)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_BASE }}/publisher
+          subject-digest: ${{ steps.digests.outputs.publisher }}
+          sbom-path: sbom/publisher.spdx.json
+          push-to-registry: true
+      - name: Attest SBOM (worker)
+        uses: actions/attest@v4
+        with:
+          subject-name: ${{ env.IMAGE_BASE }}/worker
+          subject-digest: ${{ steps.digests.outputs.worker }}
+          sbom-path: sbom/worker.spdx.json
+          push-to-registry: true
