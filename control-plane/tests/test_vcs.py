@@ -25,15 +25,31 @@ CREATED_AT = "2026-09-24T00:00:00Z"
 
 
 class _FakeGit:
-    def __init__(self, commit: str = "deadbeef") -> None:
-        self.calls: list[tuple[list[str], Path]] = []
+    def __init__(
+        self,
+        commit: str = "deadbeef",
+        *,
+        existing: set[str] | None = None,
+        staged: str = "changed\n",
+    ) -> None:
+        self.calls: list[list[str]] = []
         self._commit = commit
+        self._existing = existing or set()
+        self._staged = staged
 
     def __call__(self, argv: Sequence[str], cwd: Path) -> str:
-        self.calls.append((list(argv), Path(cwd)))
-        if list(argv)[:2] == ["rev-parse", "HEAD"]:
+        args = list(argv)
+        self.calls.append(args)
+        if args[:2] == ["rev-parse", "HEAD"]:
             return self._commit + "\n"
+        if args[:2] == ["branch", "--list"]:
+            return f"  {args[2]}\n" if args[2] in self._existing else ""
+        if args[:2] == ["diff", "--cached"]:
+            return self._staged
         return ""
+
+    def has(self, *prefix: str) -> bool:
+        return any(call[: len(prefix)] == list(prefix) for call in self.calls)
 
 
 class _FakeOpener:
@@ -74,14 +90,27 @@ def test_happy_path_branch_commit_push_pr(tmp_path: Path) -> None:
         "commit": "deadbeef",
         "pr_url": "https://github.com/o/r/pull/1",
     }
-    argv = [call[0] for call in git.calls]
-    assert argv[0] == ["switch", "-c", GOOD_BRANCH]
-    assert argv[1] == ["add", "--", "control-plane/src/sdlc/tools/vcs.py"]
-    assert argv[2] == ["commit", "-m", "FEAT-0006/TASK-0009: add open_pr"]
-    assert argv[3] == ["push", "-u", "origin", GOOD_BRANCH]
+    assert git.has("switch", "-c", GOOD_BRANCH)
+    assert git.has("add", "--", "control-plane/src/sdlc/tools/vcs.py")
+    assert git.has("commit", "-m", "FEAT-0006/TASK-0009: add open_pr")
+    assert git.has("push", "-u", "origin", GOOD_BRANCH)
     assert opener.payloads == [
         {"branch": GOOD_BRANCH, "base": "main", "title": "Add open_pr", "body": "body"}
     ]
+
+
+def test_retry_is_idempotent(tmp_path: Path) -> None:
+    """Existing branch and already-committed change: switch (no -c) and skip the commit."""
+    git = _FakeGit(existing={GOOD_BRANCH}, staged="")
+    opener = _FakeOpener()
+    result = _tool(tmp_path, git, opener).handler(
+        {"branch": GOOD_BRANCH, "commit_message": "x", "paths": ["apps/a.go"]}
+    )
+    assert git.has("switch", GOOD_BRANCH)
+    assert not git.has("switch", "-c")
+    assert not git.has("commit")
+    assert git.has("push", "-u", "origin", GOOD_BRANCH)
+    assert result["pr_url"] == "https://github.com/o/r/pull/1"
 
 
 def test_title_defaults_to_first_commit_line(tmp_path: Path) -> None:
